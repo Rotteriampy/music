@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mainLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/black">
+
+    <!-- HorizontalScrollView для вкладок -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- Вкладка "Треки" -->
+            <LinearLayout
+                android:id="@+id/tabTracks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Треки"
+                    android:textSize="20sp"
+                    android:textColor="@color/accent_color"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp" />
+
+                <View
+                    android:id="@+id/tabTracksIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/accent_color" />
+            </LinearLayout>
+
+            <!-- Вкладка "Плейлисты" -->
+            <LinearLayout
+                android:id="@+id/tabPlaylists"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Плейлисты"
+                    android:textSize="20sp"
+                    android:textColor="@android:color/white"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp" />
+
+                <View
+                    android:id="@+id/tabPlaylistsIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/accent_color"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Вкладка "Альбомы" -->
+            <LinearLayout
+                android:id="@+id/tabAlbums"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Альбомы"
+                    android:textSize="20sp"
+                    android:textColor="@android:color/white"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp" />
+
+                <View
+                    android:id="@+id/tabAlbumsIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/accent_color"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Вкладка "Исполнители" -->
+            <LinearLayout
+                android:id="@+id/tabArtists"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Исполнители"
+                    android:textSize="20sp"
+                    android:textColor="@android:color/white"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp" />
+
+                <View
+                    android:id="@+id/tabArtistsIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/accent_color"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Вкладка "Жанры" -->
+            <LinearLayout
+                android:id="@+id/tabGenres"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Жанры"
+                    android:textSize="20sp"
+                    android:textColor="@android:color/white"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp" />
+
+                <View
+                    android:id="@+id/tabGenresIndicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="2dp"
+                    android:background="@color/accent_color"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Панель кнопок -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="12dp"
+        android:gravity="center_vertical">
+
+        <!-- Левая часть - контекстные кнопки (wrap_content) -->
+        <LinearLayout
+            android:id="@+id/contextButtonsContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="start">
+
+            <!-- Кнопки для треков -->
+            <LinearLayout
+                android:id="@+id/trackButtons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/shuffleButton"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:contentDescription="Shuffle"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_shuffle" />
+
+                <ImageButton
+                    android:id="@+id/sortButton"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:contentDescription="Sort"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_sort" />
+
+            </LinearLayout>
+
+            <!-- Кнопки для плейлистов -->
+            <LinearLayout
+                android:id="@+id/playlistButtons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/createPlaylistButton"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_menu_add"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Создать плейлист"
+                    android:layout_marginEnd="16dp" />
+
+                <ImageButton
+                    android:id="@+id/btnReorderPlaylists"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_reorder"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Режим переупорядочивания" />
+
+            </LinearLayout>
+
+            <!-- Кнопки для альбомов -->
+            <LinearLayout
+                android:id="@+id/albumButtons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/btnReorderAlbums"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_reorder"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Переупорядочить альбомы" />
+
+            </LinearLayout>
+
+            <!-- Кнопки для исполнителей -->
+            <LinearLayout
+                android:id="@+id/artistButtons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/btnReorderArtists"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_reorder"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Переупорядочить исполнителей" />
+
+            </LinearLayout>
+
+            <!-- Кнопки для жанров -->
+            <LinearLayout
+                android:id="@+id/genreButtons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageButton
+                    android:id="@+id/btnReorderGenres"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_reorder"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Переупорядочить жанры" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Центральная часть - контейнер для статистики (weight=1, центрирование) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:id="@+id/trackStatsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 треков • 0:00"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:alpha="0.7"
+                android:visibility="visible" />
+
+        </LinearLayout>
+
+        <!-- Правая часть - постоянные кнопки (wrap_content) -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <ImageButton
+                android:id="@+id/searchButton"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="16dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:contentDescription="Search"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_search" />
+
+            <ImageButton
+                android:id="@+id/menuButton"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:contentDescription="Menu"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_more" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Разделитель -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#333333" />
+
+    <!-- Контейнер для контента вкладки "Треки" -->
+    <LinearLayout
+        android:id="@+id/contentTracks"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/trackList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- Контейнер для контента вкладки "Плейлисты" -->
+    <LinearLayout
+        android:id="@+id/contentPlaylists"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/playlistList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="8dp" />
+
+    </LinearLayout>
+
+    <!-- Контейнер для контента вкладки "Альбомы" -->
+    <LinearLayout
+        android:id="@+id/contentAlbums"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/albumList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="8dp" />
+
+    </LinearLayout>
+
+    <!-- Контейнер для контента вкладки "Исполнители" -->
+    <LinearLayout
+        android:id="@+id/contentArtists"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/artistList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="8dp" />
+
+    </LinearLayout>
+
+    <!-- Контейнер для контента вкладки "Жанры" -->
+    <LinearLayout
+        android:id="@+id/contentGenres"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/genreList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingHorizontal="8dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,47 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settingsLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/black">
+
+    <LinearLayout
+        android:id="@+id/gradientPreview"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_marginBottom="16dp"
+        android:background="@android:color/black"
+        android:orientation="vertical" />
+
+    <Button
+        android:id="@+id/btnScheme1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Темно-серый" />
+
+    <Button
+        android:id="@+id/btnScheme2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Темно-синий" />
+
+    <Button
+        android:id="@+id/btnScheme3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Темно-зеленый" />
+
+    <Button
+        android:id="@+id/btnScheme4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Черный" />
+
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Назад" />
+
+</LinearLayout>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/playlistRootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Отступ сверху -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="20dp" />
+
+    <!-- Название плейлиста -->
+    <TextView
+        android:id="@+id/playlistNameText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Строка с кнопками -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_back_triangle"
+            android:background="@null"
+            android:contentDescription="Назад"
+            android:tint="@android:color/white" />
+
+        <ImageButton
+            android:id="@+id/btnReorder"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_reorder"
+            android:background="@null"
+            android:contentDescription="Изменить порядок"
+            android:tint="@android:color/white"
+            android:layout_marginStart="8dp" />
+
+        <!-- Пространство между левыми и центральными кнопками -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Кнопка воспроизведения плейлиста -->
+        <!-- Кнопка воспроизведения плейлиста -->
+        <ImageButton
+            android:id="@+id/btnPlayPlaylist"
+            android:layout_width="64dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_play"
+            android:background="@drawable/oval_accent_background"
+            android:contentDescription="Воспроизвести плейлист"
+            android:scaleType="centerInside"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Кнопка перемешивания плейлиста -->
+        <ImageButton
+            android:id="@+id/btnShufflePlaylist"
+            android:layout_width="64dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_shuffle"
+            android:background="@drawable/oval_accent_background"
+            android:contentDescription="Перемешать и воспроизвести"
+            android:scaleType="centerInside" />
+
+        <!-- Пространство между центральными и правыми кнопками -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btnAddTrack"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_playlist_add"
+            android:background="@null"
+            android:contentDescription="Добавить трек"
+            android:tint="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
+        <ImageButton
+            android:id="@+id/btnDeletePlaylist"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_delete"
+            android:background="@null"
+            android:contentDescription="Удалить плейлист"
+            android:tint="@android:color/white" />
+
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/playlistTracksList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingTop="8dp" />
+
+</LinearLayout>

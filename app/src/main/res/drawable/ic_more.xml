@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Круг -->
+    <path
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.5"
+        android:pathData="M12,12m-10,0a10,10 0,1,1 20,0a10,10 0,1,1 -20,0"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Левая точка -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M8,12m-1.5,0a1.5,1.5 0,1,1 3,0a1.5,1.5 0,1,1 -3,0"/>
+
+    <!-- Центральная точка -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,12m-1.5,0a1.5,1.5 0,1,1 3,0a1.5,1.5 0,1,1 -3,0"/>
+
+    <!-- Правая точка -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16,12m-1.5,0a1.5,1.5 0,1,1 3,0a1.5,1.5 0,1,1 -3,0"/>
+</vector>

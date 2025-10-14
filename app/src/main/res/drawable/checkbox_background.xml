@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Checked state: квадрат с галочкой -->
+    <item android:state_checked="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <stroke android:width="2dp" android:color="@color/accent_color" />
+                    <corners android:radius="4dp" />
+                </shape>
+            </item>
+            <item android:drawable="@drawable/ic_check"
+                android:gravity="center"
+                android:width="16dp"
+                android:height="16dp" />
+        </layer-list>
+    </item>
+
+    <!-- Unchecked state: просто квадрат -->
+    <item android:state_checked="false">
+        <shape android:shape="rectangle">
+            <stroke android:width="2dp" android:color="@android:color/white" />
+            <corners android:radius="4dp" />
+        </shape>
+    </item>
+</selector>

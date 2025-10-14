@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/sort_by_date"
+        android:title="По дате добавления" />
+    <item
+        android:id="@+id/sort_by_name"
+        android:title="По имени" />
+    <item
+        android:id="@+id/sort_by_artist"
+        android:title="По артисту" />
+    <item
+        android:id="@+id/sort_by_duration"
+        android:title="По продолжительности" />
+</menu>
