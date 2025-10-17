@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.net.Uri
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -24,8 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
-import java.util.Collections
-import androidx.core.content.ContextCompat
+import java.io.File
+import android.app.RecoverableSecurityException
+import android.os.Build
 
 class TrackAdapter(
     private var tracks: MutableList<Track>,
@@ -34,6 +34,9 @@ class TrackAdapter(
 
     companion object {
         private val bitmapCache: MutableMap<String, Bitmap?> = mutableMapOf()
+        const val DELETE_PERMISSION_REQUEST = 101
+        var pendingDeletePath: String? = null
+        var pendingDeletePosition: Int = -1
     }
 
     var isReorderMode = false
@@ -50,6 +53,7 @@ class TrackAdapter(
         val trackName: TextView = itemView.findViewById(R.id.trackName)
         val trackArtist: TextView = itemView.findViewById(R.id.trackArtist)
         val trackAvatar: ImageView = itemView.findViewById(R.id.trackAvatar)
+        val playCountBadge: TextView = itemView.findViewById(R.id.playCountBadge)
         val dragHandle: ImageView? = itemView.findViewById(R.id.dragHandle)
         val deleteButton: ImageButton? = itemView.findViewById(R.id.deleteTrackButton)
         val moreButton: ImageButton = itemView.findViewById(R.id.moreTrackButton)
@@ -57,6 +61,14 @@ class TrackAdapter(
         fun bind(track: Track, position: Int, adapter: TrackAdapter, context: Context) {
             trackName.text = track.name
             trackArtist.text = track.artist ?: "Unknown Artist"
+
+            val playCount = ListeningStats.getPlayCount(track.path ?: "")
+            if (playCount > 0) {
+                playCountBadge.visibility = View.VISIBLE
+                playCountBadge.text = playCount.toString()
+            } else {
+                playCountBadge.visibility = View.GONE
+            }
 
             dragHandle?.visibility = if (adapter.isReorderMode) View.VISIBLE else View.GONE
             deleteButton?.visibility = if (adapter.isReorderMode && adapter.isFromPlaylist) View.VISIBLE else View.GONE
@@ -67,17 +79,30 @@ class TrackAdapter(
                 adapter.onTrackDeleted?.invoke(position)
             }
 
-            dragHandle?.setOnTouchListener { _, event ->
-                if (event.actionMasked == MotionEvent.ACTION_DOWN && adapter.isReorderMode) {
-                    adapter.onStartDrag?.invoke(this@TrackViewHolder)
-                    true
-                } else {
-                    false
+            moreButton.setOnClickListener {
+                adapter.showTrackOptions(track, position, context) // Передаем context
+            }
+
+            itemView.setOnClickListener {
+                if (!adapter.isReorderMode) {
+                    val allTracks = adapter.getTracks()
+                    QueueManager.initializeQueueFromPosition(context, allTracks, position)
+
+                    if (track.path != null && File(track.path).exists()) {
+                        val intent = Intent(context, PlayerActivity::class.java).apply {
+                            putExtra("TRACK_PATH", track.path)
+                            putExtra("TRACK_NAME", track.name)
+                            putExtra("TRACK_ARTIST", track.artist)
+                        }
+                        context.startActivity(intent)
+                    } else {
+                        Toast.makeText(context, "Файл не найден", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
 
             moreButton.setOnClickListener { view ->
-                adapter.showTrackMenu(view, track, context, position)
+                adapter.showTrackOptions(track, position, context)
             }
         }
     }
@@ -97,14 +122,11 @@ class TrackAdapter(
     private fun loadTrackAvatar(context: Context, track: Track, imageView: ImageView) {
         CoroutineScope(Dispatchers.IO).launch {
             var bitmap: Bitmap? = null
-
             val idKey = track.id ?: track.path ?: return@launch
 
-            // Проверяем кэш
             bitmapCache[idKey]?.let {
                 bitmap = it
             } ?: run {
-                // Пробуем метаданные
                 try {
                     val retriever = MediaMetadataRetriever()
                     track.path?.let { retriever.setDataSource(it) }
@@ -119,7 +141,6 @@ class TrackAdapter(
                 }
             }
 
-            // Fallback — MediaStore (обложка альбома)
             if (bitmap == null && track.albumId != null) {
                 val uri = ContentUris.withAppendedId(
                     MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
@@ -147,36 +168,163 @@ class TrackAdapter(
         }
     }
 
-    fun showTrackMenu(view: View, track: Track, context: Context, position: Int) {
-        val popupMenu = PopupMenu(context, view)
-        popupMenu.menuInflater.inflate(R.menu.track_menu, popupMenu.menu)
+    private fun showTrackOptions(track: Track, position: Int, context: Context) {
+        val options = mutableListOf(
+            "Добавить в избранное",
+            "Добавить в очередь",
+            "Информация о треке",
+            "Поделиться",
+            "Установить как рингтон",
+            "Добавить в плейлист",
+            "Редактировать теги",
+            "Удалить"
+        )
 
-        popupMenu.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.action_edit -> {
-                    val intent = Intent(context, EditTrackActivity::class.java)
-                    track.path?.let { intent.putExtra("TRACK_PATH", it) }
-                    context.startActivity(intent)
-                    true
+        // Проверяем, есть ли трек в плейлисте Избранное
+        val favoritesPlaylist = PlaylistManager.getPlaylists().find { it.id == Playlist.FAVORITES_ID }
+        if (favoritesPlaylist?.tracks?.any { it.path == track.path } == true) {
+            options[0] = "Удалить из избранного"
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(track.name)
+            .setItems(options.toTypedArray()) { _, which ->
+                when (which) {
+                    0 -> toggleFavorite(track, context)
+                    1 -> addToQueue(track, context)
+                    2 -> showTrackInfo(track, context)
+                    3 -> shareTrack(track, context)
+                    4 -> setAsRingtone(track, context)
+                    5 -> showPlaylistDialog(track, context)
+                    6 -> showEditTagsDialog(track, position, context)
+                    7 -> confirmDelete(track, position, context)
                 }
+            }
+            .show()
+    }
 
-                R.id.action_delete -> {
-                    val builder = AlertDialog.Builder(context)
-                    builder.setTitle("Удалить трек?")
-                    builder.setMessage("Это удалит файл с устройства. Действие необратимо.")
-                    builder.setPositiveButton("Удалить") { _, _ ->
-                        deleteTrackFile(context, track.path, position)
-                    }
-                    builder.setNegativeButton("Отмена", null)
-                    builder.show()
-                    true
-                }
+    private fun toggleFavorite(track: Track, context: Context) {
+        val favoritesPlaylist = PlaylistManager.getPlaylists().find { it.id == Playlist.FAVORITES_ID }
 
-                else -> false
+        if (favoritesPlaylist == null) {
+            Toast.makeText(context, "Плейлист Избранное не найден", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val isInFavorites = favoritesPlaylist.tracks.any { it.path == track.path }
+
+        if (isInFavorites) {
+            // Удаляем из избранного
+            favoritesPlaylist.tracks.removeAll { it.path == track.path }
+            PlaylistManager.savePlaylists(context)
+            Toast.makeText(context, "Удалено из избранного", Toast.LENGTH_SHORT).show()
+        } else {
+            // Добавляем в избранное
+            PlaylistManager.addTrackToPlaylist(context, Playlist.FAVORITES_ID, track)
+            Toast.makeText(context, "Добавлено в избранное", Toast.LENGTH_SHORT).show()
+        }
+
+        context.sendBroadcast(Intent("com.example.music.FAVORITES_UPDATED"))
+    }
+
+    private fun addToQueue(track: Track, context: Context) {
+        QueueManager.addToManualQueue(context, track)
+        Toast.makeText(context, "Добавлено в очередь", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showTrackInfo(track: Track, context: Context) {
+        TrackInfoDialog(context, track).show()
+    }
+
+    private fun shareTrack(track: Track, context: Context) {
+        val shareIntent = Intent(Intent.ACTION_SEND)
+        shareIntent.type = "audio/*"
+        shareIntent.putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse(track.path))
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        try {
+            context.startActivity(Intent.createChooser(shareIntent, "Поделиться треком"))
+        } catch (e: Exception) {
+            Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun setAsRingtone(track: Track, context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!android.provider.Settings.System.canWrite(context)) {
+                Toast.makeText(context, "Необходимо разрешение на изменение системных настроек", Toast.LENGTH_LONG).show()
+                val intent = Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS)
+                intent.data = android.net.Uri.parse("package:" + context.packageName)
+                context.startActivity(intent)
+                return
             }
         }
 
-        popupMenu.show()
+        try {
+            val file = File(track.path ?: return)
+            val values = android.content.ContentValues()
+            values.put(android.provider.MediaStore.MediaColumns.DATA, file.absolutePath)
+            values.put(android.provider.MediaStore.MediaColumns.TITLE, track.name)
+            values.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "audio/*")
+            values.put(android.provider.MediaStore.Audio.Media.IS_RINGTONE, true)
+
+            val uri = android.provider.MediaStore.Audio.Media.getContentUriForPath(file.absolutePath)
+            context.contentResolver.delete(uri!!, android.provider.MediaStore.MediaColumns.DATA + "=\"" + file.absolutePath + "\"", null)
+            val newUri = context.contentResolver.insert(uri, values)
+
+            android.media.RingtoneManager.setActualDefaultRingtoneUri(
+                context,
+                android.media.RingtoneManager.TYPE_RINGTONE,
+                newUri
+            )
+
+            Toast.makeText(context, "Установлено как рингтон", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showPlaylistDialog(track: Track, context: Context) {
+        val playlists = PlaylistManager.getPlaylists().filter { it.id != Playlist.FAVORITES_ID }
+
+        if (playlists.isEmpty()) {
+            Toast.makeText(context, "Нет доступных плейлистов", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val playlistNames = playlists.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(context)
+            .setTitle("Добавить в плейлист")
+            .setItems(playlistNames) { _, which ->
+                val selectedPlaylist = playlists[which]
+
+                if (selectedPlaylist.tracks.any { it.path == track.path }) {
+                    Toast.makeText(context, "Трек уже в плейлисте", Toast.LENGTH_SHORT).show()
+                } else {
+                    PlaylistManager.addTrackToPlaylist(context, selectedPlaylist.id, track)
+                    Toast.makeText(context, "Добавлено в ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun showEditTagsDialog(track: Track, position: Int, context: Context) {
+        val intent = Intent(context, EditTrackActivity::class.java)
+        track.path?.let { intent.putExtra("TRACK_PATH", it) }
+        context.startActivity(intent)
+    }
+
+    private fun confirmDelete(track: Track, position: Int, context: Context) {
+        val builder = AlertDialog.Builder(context)
+        builder.setTitle("Удалить трек?")
+        builder.setMessage("Это удалит файл с устройства. Действие необратимо.")
+        builder.setPositiveButton("Удалить") { _, _ ->
+            deleteTrackFile(context, track.path, position)
+        }
+        builder.setNegativeButton("Отмена", null)
+        builder.show()
     }
 
     private fun deleteTrackFile(context: Context, path: String?, position: Int) {
@@ -185,51 +333,79 @@ class TrackAdapter(
             return
         }
 
-        val contentResolver = context.contentResolver
-        val rowsDeleted = contentResolver.delete(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            "${MediaStore.Audio.Media.DATA} = ?",
-            arrayOf(path)
-        )
+        val file = File(path)
+        if (!file.exists()) {
+            Toast.makeText(context, "Файл не найден", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        if (rowsDeleted > 0) {
-            Toast.makeText(context, "Трек удалён", Toast.LENGTH_SHORT).show()
-            removeItem(position)
-            if (isFromPlaylist) {
-                // пример: PlaylistManager.removeTrackFromPlaylist(context, currentPlaylistId, track.id)
+        try {
+            val contentResolver = context.contentResolver
+            val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            val selection = "${MediaStore.Audio.Media.DATA} = ?"
+            val selectionArgs = arrayOf(path)
+
+            val cursor = contentResolver.query(uri, arrayOf(MediaStore.Audio.Media._ID), selection, selectionArgs, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                    val deleteUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+
+                    try {
+                        val rowsDeleted = contentResolver.delete(deleteUri, null, null)
+                        if (rowsDeleted > 0) {
+                            Toast.makeText(context, "Трек удалён", Toast.LENGTH_SHORT).show()
+                            removeItem(position)
+
+                            PlaylistManager.getPlaylists().forEach { playlist ->
+                                playlist.tracks.removeAll { it.path == path }
+                            }
+                            PlaylistManager.savePlaylists(context)
+                        } else {
+                            Toast.makeText(context, "Не удалось удалить файл", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (securityException: SecurityException) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            val recoverableSecurityException = securityException as?
+                                    RecoverableSecurityException
+                                ?: throw RuntimeException(securityException.message, securityException)
+
+                            val intentSender = recoverableSecurityException.userAction.actionIntent.intentSender
+                            pendingDeletePath = path
+                            pendingDeletePosition = position
+
+                            (context as? android.app.Activity)?.startIntentSenderForResult(
+                                intentSender, DELETE_PERMISSION_REQUEST, null, 0, 0, 0, null
+                            )
+                        } else {
+                            throw securityException
+                        }
+                    }
+                }
             }
-        } else {
-            Toast.makeText(context, "Ошибка удаления", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun updateTracks(newTracks: List<Track>) {
-        tracks.clear()
-        tracks.addAll(newTracks)
-        notifyDataSetChanged()
-    }
-
-    fun moveItem(fromPosition: Int, toPosition: Int) {
-        if (fromPosition < toPosition) {
-            for (i in fromPosition until toPosition) {
-                Collections.swap(tracks, i, i + 1)
-            }
-        } else {
-            for (i in fromPosition downTo toPosition + 1) {
-                Collections.swap(tracks, i, i - 1)
-            }
-        }
-        notifyItemMoved(fromPosition, toPosition)
-        onTrackMoved?.invoke(fromPosition, toPosition)
+    fun moveItem(from: Int, to: Int) {
+        val item = tracks.removeAt(from)
+        tracks.add(to, item)
+        notifyItemMoved(from, to)
+        onTrackMoved?.invoke(from, to)
     }
 
     fun removeItem(position: Int) {
         if (position in tracks.indices) {
             tracks.removeAt(position)
             notifyItemRemoved(position)
-            onTrackDeleted?.invoke(position)
         }
     }
 
-    fun getTracks(): List<Track> = tracks.toList()
+    fun updateTracks(newTracks: MutableList<Track>) {
+        tracks = newTracks
+        notifyDataSetChanged()
+    }
+
+    fun getTracks(): MutableList<Track> = tracks
 }

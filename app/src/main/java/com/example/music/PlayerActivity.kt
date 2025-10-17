@@ -1,12 +1,15 @@
 package com.example.music
 
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.os.IBinder
 import android.util.Log
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -15,7 +18,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
-import java.util.concurrent.TimeUnit
+import android.os.Build
+import androidx.core.content.ContextCompat
+import android.app.AlertDialog
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -31,16 +36,41 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var backButton: ImageButton
     private lateinit var addToPlaylistButton: ImageButton
     private lateinit var favoritesButton: ImageButton
-    private lateinit var playbackModeButton: ImageButton
-    private var mediaPlayer: MediaPlayer? = null
-    private val handler = Handler(Looper.getMainLooper())
-    enum class PlaybackMode { SEQUENTIAL, REPEAT_ONE, SHUFFLE }
-    private var playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL
+    private lateinit var btnPlaybackMode: ImageButton
 
-    // Добавлено!
-    private var shuffleInitialized: Boolean = false
-
+    private var playbackMode = "NORMAL" // "NORMAL", "REPEAT_ONE", "REPEAT_ALL", "STOP_AFTER"
     private var currentTrack: Track? = null
+    private var musicService: MusicService? = null
+    private var isBound = false
+
+    private val trackChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.example.music.TRACK_CHANGED" -> {
+                    updateUI()
+                }
+                "com.example.music.PLAYBACK_STATE_CHANGED" -> {
+                    updatePlayPauseButton()
+                }
+            }
+        }
+    }
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as MusicService.MusicBinder
+            musicService = binder.getService()
+            isBound = true
+
+            setupServiceListeners()
+            updateUI()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            musicService = null
+            isBound = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,60 +88,68 @@ class PlayerActivity : AppCompatActivity() {
         backButton = findViewById(R.id.backButton)
         addToPlaylistButton = findViewById(R.id.addToPlaylistButton)
         favoritesButton = findViewById(R.id.favoriteButton)
-        playbackModeButton = findViewById(R.id.playbackModeButton)
+        btnPlaybackMode = findViewById(R.id.playbackModeButton)
 
-        playbackMode = intent.getStringExtra("PLAYBACK_MODE")?.let {
-            PlaybackMode.valueOf(it)
-        } ?: PlaybackMode.SEQUENTIAL
-        shuffleInitialized = playbackMode == PlaybackMode.SHUFFLE
-        if (playbackMode == PlaybackMode.SEQUENTIAL || playbackMode == PlaybackMode.REPEAT_ONE) {
-            QueueManager.restoreOriginalQueue(this)
+        val filter = IntentFilter().apply {
+            addAction("com.example.music.TRACK_CHANGED")
+            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            trackChangedReceiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
+        val trackPath = intent.getStringExtra("TRACK_PATH")
+        if (trackPath != null) {
+            val serviceIntent = Intent(this, MusicService::class.java).apply {
+                putExtra("TRACK_PATH", trackPath)
+            }
+            startService(serviceIntent)
+        }
+
+        Intent(this, MusicService::class.java).also { intent ->
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
+
+        // Загружаем сохраненный режим воспроизведения
+        val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+        playbackMode = prefs.getString("playback_mode", "NORMAL") ?: "NORMAL"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
         }
 
         updatePlaybackModeIcon()
-        playbackModeButton.setOnClickListener {
-            val prevMode = playbackMode
-            playbackMode = when (playbackMode) {
-                PlaybackMode.SEQUENTIAL -> PlaybackMode.REPEAT_ONE
-                PlaybackMode.REPEAT_ONE -> PlaybackMode.SHUFFLE
-                PlaybackMode.SHUFFLE -> PlaybackMode.SEQUENTIAL
-            }
-            updatePlaybackModeIcon()
 
-            when (playbackMode) {
-                PlaybackMode.SHUFFLE -> {
-                    // Перемешиваем только если переключаемся С другого режима
-                    if (prevMode != PlaybackMode.SHUFFLE) {
-                        QueueManager.shuffleQueue(this)
-                        shuffleInitialized = true
-                    }
-                }
-                PlaybackMode.SEQUENTIAL, PlaybackMode.REPEAT_ONE -> {
-                    if (prevMode == PlaybackMode.SHUFFLE) {
-                        QueueManager.restoreOriginalQueue(this)
-                    }
-                    shuffleInitialized = false
-                }
-            }
+        btnPlaybackMode.setOnClickListener {
+            togglePlaybackMode()
         }
 
         nextButton.setOnClickListener {
-            when (playbackMode) {
-                PlaybackMode.SEQUENTIAL, PlaybackMode.SHUFFLE -> loadNextTrack()
-                PlaybackMode.REPEAT_ONE -> {
-                    seekBar.progress = 0
-                    mediaPlayer?.seekTo(0)
-                    mediaPlayer?.start()
+            musicService?.let {
+                val intent = Intent(this, MusicService::class.java).apply {
+                    action = MusicService.ACTION_NEXT
                 }
+                startService(intent)
             }
         }
-        previousButton.setOnClickListener { loadPreviousTrack() }
+
+        previousButton.setOnClickListener {
+            musicService?.let {
+                val intent = Intent(this, MusicService::class.java).apply {
+                    action = MusicService.ACTION_PREVIOUS
+                }
+                startService(intent)
+            }
+        }
+
         backButton.setOnClickListener { finish() }
 
-        addToPlaylistButton.setOnClickListener { view ->
+        addToPlaylistButton.setOnClickListener {
             currentTrack?.let { track ->
-                val adapter = TrackAdapter(mutableListOf(), false)
-                adapter.showAddToPlaylistMenu(view, track)
+                showPlaylistDialog(track)
             }
         }
 
@@ -125,22 +163,19 @@ class PlayerActivity : AppCompatActivity() {
                 duration = null,
                 dateModified = null
             )
-            Log.d("FAVORITE_TRACK", "duration=${fullTrack.duration}, name=${fullTrack.name}")
             if (PlaylistManager.isInFavorites(fullTrack)) {
                 PlaylistManager.removeFromFavorites(this, fullTrack)
                 updateFavoritesButton(fullTrack)
-                Toast.makeText(this, "Удалено из избранного", Toast.LENGTH_SHORT).show()
             } else {
                 PlaylistManager.addToFavorites(this, fullTrack)
                 updateFavoritesButton(fullTrack)
-                Toast.makeText(this, "Добавлено в избранное", Toast.LENGTH_SHORT).show()
             }
         }
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    mediaPlayer?.seekTo(progress)
+                    musicService?.seekTo(progress)
                     currentTime.text = formatTime(progress)
                 }
             }
@@ -150,52 +185,136 @@ class PlayerActivity : AppCompatActivity() {
 
         playPauseButton.setOnClickListener { togglePlayPause() }
 
-        val trackPath = intent.getStringExtra("TRACK_PATH")
         val trackNameStr = intent.getStringExtra("TRACK_NAME")
         val trackArtistStr = intent.getStringExtra("TRACK_ARTIST")
-        currentTrack = getCurrentTrack()
+        currentTrack = QueueManager.getCurrentTrack()
 
         this.trackName.text = trackNameStr
         this.trackArtist.text = trackArtistStr
         loadTrackCover(trackPath)
 
         currentTrack?.let { updateFavoritesButton(it) }
+    }
 
-        if (trackPath != null) {
-            loadTrack(trackPath)
+    private fun togglePlaybackMode() {
+        val previousMode = playbackMode
+
+        playbackMode = when (playbackMode) {
+            "NORMAL" -> {
+                btnPlaybackMode.setImageResource(R.drawable.ic_repeat_on)
+                "REPEAT_ONE"
+            }
+            "REPEAT_ONE" -> {
+                btnPlaybackMode.setImageResource(R.drawable.ic_shuffle)
+                // Перемешиваем очередь при включении shuffle
+                QueueManager.shuffleQueue(this)
+                "SHUFFLE"
+            }
+            "SHUFFLE" -> {
+                btnPlaybackMode.setImageResource(R.drawable.ic_stop_after)
+                "STOP_AFTER"
+            }
+            "STOP_AFTER" -> {
+                btnPlaybackMode.setImageResource(R.drawable.ic_repeat_off)
+                "NORMAL"
+            }
+            else -> {
+                btnPlaybackMode.setImageResource(R.drawable.ic_repeat_off)
+                "NORMAL"
+            }
+        }
+
+        // Восстанавливаем порядок при выходе из SHUFFLE
+        if (previousMode == "SHUFFLE" && playbackMode != "SHUFFLE") {
+            QueueManager.restoreOriginalQueue(this)
+        }
+
+        // Сохраняем режим
+        val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putString("playback_mode", playbackMode).apply()
+
+        // Отправляем режим в сервис
+        val intent = Intent("com.example.music.PLAYBACK_MODE_CHANGED")
+        intent.putExtra("playback_mode", playbackMode)
+        sendBroadcast(intent)
+    }
+
+    private fun setupServiceListeners() {
+        musicService?.setOnUpdateListener { current, duration ->
+            runOnUiThread {
+                seekBar.max = duration
+                seekBar.progress = current
+                currentTime.text = formatTime(current)
+                totalTime.text = formatTime(duration)
+            }
+        }
+    }
+
+    private fun showPlaylistDialog(track: Track) {
+        val playlists = PlaylistManager.getPlaylists().filter { it.id != Playlist.FAVORITES_ID }
+
+        if (playlists.isEmpty()) {
+            Toast.makeText(this, "Нет доступных плейлистов", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val playlistNames = playlists.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Добавить в плейлист")
+            .setItems(playlistNames) { _, which ->
+                val selectedPlaylist = playlists[which]
+
+                if (selectedPlaylist.tracks.any { it.path == track.path }) {
+                    Toast.makeText(this, "Трек уже в плейлисте", Toast.LENGTH_SHORT).show()
+                } else {
+                    PlaylistManager.addTrackToPlaylist(this, selectedPlaylist.id, track)
+                    Toast.makeText(this, "Добавлено в ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun updateUI() {
+        currentTrack = MusicService.currentTrack
+        currentTrack?.let { track ->
+            trackName.text = track.name
+            trackArtist.text = track.artist ?: "Unknown Artist"
+            updateFavoritesButton(track)
+            loadTrackCover(track.path)
+        }
+
+        updatePlayPauseButton()
+
+        val duration = musicService?.getDuration() ?: 0
+        seekBar.max = duration
+        totalTime.text = formatTime(duration)
+    }
+
+    private fun togglePlayPause() {
+        if (MusicService.isPlaying) {
+            musicService?.pauseMusic()
         } else {
-            Toast.makeText(this, "Трек не найден", Toast.LENGTH_SHORT).show()
-            finish()
+            musicService?.resumeMusic()
+        }
+        updatePlayPauseButton()
+    }
+
+    private fun updatePlayPauseButton() {
+        if (MusicService.isPlaying) {
+            playPauseButton.setImageResource(R.drawable.ic_pause)
+        } else {
+            playPauseButton.setImageResource(R.drawable.ic_play)
         }
     }
 
     private fun updatePlaybackModeIcon() {
         when (playbackMode) {
-            PlaybackMode.SEQUENTIAL -> playbackModeButton.setImageResource(R.drawable.ic_repeat_off)
-            PlaybackMode.REPEAT_ONE -> playbackModeButton.setImageResource(R.drawable.ic_repeat_on)
-            PlaybackMode.SHUFFLE -> playbackModeButton.setImageResource(R.drawable.ic_shuffle)
-        }
-    }
-
-    private fun playbackModeToString(mode: PlaybackMode): String {
-        return when (mode) {
-            PlaybackMode.SEQUENTIAL -> "Последовательный"
-            PlaybackMode.REPEAT_ONE -> "Повтор одного"
-            PlaybackMode.SHUFFLE -> "Случайный"
-        }
-    }
-
-    private fun togglePlayPause() {
-        mediaPlayer?.let { player ->
-            if (player.isPlaying) {
-                player.pause()
-                playPauseButton.setImageResource(R.drawable.ic_play)
-                handler.removeCallbacksAndMessages(null)
-            } else {
-                player.start()
-                playPauseButton.setImageResource(R.drawable.ic_pause)
-                updateSeekBar()
-            }
+            "NORMAL" -> btnPlaybackMode.setImageResource(R.drawable.ic_repeat_off)
+            "REPEAT_ONE" -> btnPlaybackMode.setImageResource(R.drawable.ic_repeat_on)
+            "SHUFFLE" -> btnPlaybackMode.setImageResource(R.drawable.ic_shuffle)
+            "STOP_AFTER" -> btnPlaybackMode.setImageResource(R.drawable.ic_stop_after)
         }
     }
 
@@ -213,128 +332,16 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 retriever.release()
             } catch (e: Exception) {
+                e.printStackTrace()
                 trackAvatar.setImageResource(android.R.drawable.ic_menu_gallery)
-                Log.e("PlayerActivity", "Ошибка загрузки обложки: ${e.message}")
             }
         }
     }
 
-    private fun loadTrack(trackPath: String) {
-        stopPlayback()
-        try {
-            mediaPlayer = MediaPlayer().apply {
-                setDataSource(trackPath)
-                prepareAsync()
-                setOnPreparedListener {
-                    try {
-                        seekBar.max = it.duration
-                        totalTime.text = formatTime(it.duration)
-                        seekBar.progress = 0
-                        currentTime.text = formatTime(0)
-                        playPauseButton.setImageResource(R.drawable.ic_pause)
-                        start()
-                        updateSeekBar()
-                    } catch (e: Exception) {
-                        Log.e("PlayerActivity", "Error in onPreparedListener: ${e.message}")
-                        Toast.makeText(
-                            this@PlayerActivity,
-                            "Ошибка воспроизведения",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-                setOnCompletionListener {
-                    when (playbackMode) {
-                        PlaybackMode.SEQUENTIAL, PlaybackMode.SHUFFLE -> loadNextTrack()
-                        PlaybackMode.REPEAT_ONE -> {
-                            seekBar.progress = 0
-                            mediaPlayer?.seekTo(0)
-                            mediaPlayer?.start()
-                        }
-                    }
-                }
-                setOnErrorListener { _, what, extra ->
-                    Log.e("PlayerActivity", "MediaPlayer error: what=$what, extra=$extra")
-                    Toast.makeText(
-                        this@PlayerActivity,
-                        "Ошибка воспроизведения: $what",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    false
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("PlayerActivity", "Error setting up MediaPlayer: ${e.message}")
-            Toast.makeText(this, "Ошибка загрузки трека: ${e.message}", Toast.LENGTH_SHORT).show()
-            stopPlayback()
-        }
-    }
-
-    private fun loadNextTrack() {
-        if (QueueManager.moveToNextTrack(this)) {
-            val nextTrack = QueueManager.getCurrentTrack()
-            if (nextTrack != null && nextTrack.path != null && File(nextTrack.path).exists()) {
-                val intent = Intent(this, PlayerActivity::class.java).apply {
-                    putExtra("TRACK_PATH", nextTrack.path)
-                    putExtra("TRACK_NAME", nextTrack.name)
-                    putExtra("TRACK_ARTIST", nextTrack.artist)
-                    putExtra("PLAYBACK_MODE", playbackMode.name)
-                }
-                startActivity(intent)
-                finish()
-            } else {
-                Toast.makeText(this, "Следующий трек недоступен", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            Toast.makeText(this, "Конец очереди", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun loadPreviousTrack() {
-        if (QueueManager.moveToPreviousTrack(this)) {
-            val prevTrack = QueueManager.getCurrentTrack()
-            if (prevTrack != null && prevTrack.path != null && File(prevTrack.path).exists()) {
-                val intent = Intent(this, PlayerActivity::class.java).apply {
-                    putExtra("TRACK_PATH", prevTrack.path)
-                    putExtra("TRACK_NAME", prevTrack.name)
-                    putExtra("TRACK_ARTIST", prevTrack.artist)
-                    putExtra("PLAYBACK_MODE", playbackMode.name)
-                }
-                startActivity(intent)
-                finish()
-            } else {
-                Toast.makeText(this, "Предыдущий трек недоступен", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            Toast.makeText(this, "Начало очереди", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun updateSeekBar() {
-        mediaPlayer?.let { player ->
-            if (player.isPlaying && !isFinishing) {
-                seekBar.progress = player.currentPosition
-                currentTime.text = formatTime(player.currentPosition)
-                handler.postDelayed({ updateSeekBar() }, 1000)
-            }
-        }
-    }
-
-    private fun formatTime(milliseconds: Int): String {
-        val minutes = TimeUnit.MILLISECONDS.toMinutes(milliseconds.toLong())
-        val seconds = TimeUnit.MILLISECONDS.toSeconds(milliseconds.toLong()) % 60
+    private fun formatTime(millis: Int): String {
+        val seconds = (millis / 1000) % 60
+        val minutes = (millis / (1000 * 60)) % 60
         return String.format("%d:%02d", minutes, seconds)
-    }
-
-    private fun stopPlayback() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.stop()
-            }
-            it.release()
-        }
-        mediaPlayer = null
-        handler.removeCallbacksAndMessages(null)
     }
 
     private fun updateFavoritesButton(track: Track) {
@@ -345,38 +352,21 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        mediaPlayer?.let { player ->
-            if (player.isPlaying) {
-                updateSeekBar()
-            } else {
-                seekBar.progress = player.currentPosition
-                currentTime.text = formatTime(player.currentPosition)
-            }
-        }
-        currentTrack?.let { updateFavoritesButton(it) }
+    private fun findFullTrack(trackPath: String?): Track? {
+        if (trackPath == null) return null
+        return QueueManager.getCurrentQueue().find { it.path == trackPath }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        stopPlayback()
-        handler.removeCallbacksAndMessages(null)
-    }
-
-    private fun findFullTrack(path: String?): Track? {
-        return QueueManager.getCurrentQueue().find { it.path == path }
-            ?: PlaylistManager.getPlaylists().flatMap { it.tracks }.find { it.path == path }
-    }
-
-    private fun getCurrentTrack(): Track? {
-        val path = intent.getStringExtra("TRACK_PATH")
-        return findFullTrack(path)
-            ?: Track(
-                name = intent.getStringExtra("TRACK_NAME") ?: "",
-                artist = intent.getStringExtra("TRACK_ARTIST") ?: "",
-                albumId = null,
-                path = path
-            )
+        try {
+            unregisterReceiver(trackChangedReceiver)
+        } catch (e: Exception) {
+            // Receiver уже отменен
+        }
+        if (isBound) {
+            unbindService(serviceConnection)
+            isBound = false
+        }
     }
 }

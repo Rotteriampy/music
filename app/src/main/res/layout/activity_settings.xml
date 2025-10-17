@@ -9,39 +9,44 @@
     <LinearLayout
         android:id="@+id/gradientPreview"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="10dp"
         android:layout_marginBottom="16dp"
         android:background="@android:color/black"
         android:orientation="vertical" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Статистика прослушиваний"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="8dp" />
     <Button
-        android:id="@+id/btnScheme1"
+        android:id="@+id/exportStatsButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Темно-серый" />
-
+        android:text="Экспортировать статистику"
+        android:layout_marginTop="8dp" />
     <Button
-        android:id="@+id/btnScheme2"
+        android:id="@+id/importStatsButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Темно-синий" />
-
+        android:text="Импортировать статистику"
+        android:layout_marginTop="8dp" />
     <Button
-        android:id="@+id/btnScheme3"
+        android:id="@+id/clearStatsButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Темно-зеленый" />
-
-    <Button
-        android:id="@+id/btnScheme4"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Черный" />
+        android:text="Очистить статистику"
+        android:textColor="@android:color/holo_red_light"
+        android:layout_marginTop="8dp" />
 
     <Button
         android:id="@+id/btnBack"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Назад" />
+        android:text="Назад"
+        android:layout_marginTop="80dp" />
 
 </LinearLayout>

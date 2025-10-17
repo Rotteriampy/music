@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import android.os.Build
 
 class ArtistActivity : AppCompatActivity() {
 
@@ -44,6 +45,9 @@ class ArtistActivity : AppCompatActivity() {
         artistName = intent.getStringExtra("ARTIST_NAME")
 
         restoreColor()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
+        }
 
         if (artistName != null) {
             artistNameText.text = artistName
@@ -178,5 +182,11 @@ class ArtistActivity : AppCompatActivity() {
             else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
         }
         artistRootLayout.background = color
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Обновляем адаптер при возврате на экран
+        trackAdapter.notifyDataSetChanged()
     }
 }

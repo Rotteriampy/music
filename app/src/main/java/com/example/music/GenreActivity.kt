@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import android.os.Build
 
 class GenreActivity : AppCompatActivity() {
 
@@ -53,6 +54,9 @@ class GenreActivity : AppCompatActivity() {
             genreTracksList.adapter = trackAdapter
         } else {
             finish()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
         }
 
         btnBack.setOnClickListener { finish() }
@@ -192,5 +196,11 @@ class GenreActivity : AppCompatActivity() {
             else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
         }
         genreRootLayout.background = color
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Обновляем адаптер при возврате на экран
+        trackAdapter.notifyDataSetChanged()
     }
 }

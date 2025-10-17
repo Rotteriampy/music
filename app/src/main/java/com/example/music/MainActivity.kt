@@ -23,20 +23,30 @@ import android.widget.EditText
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import java.io.File
-import android.widget.ImageView
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.Button
-import android.view.Gravity
-import android.util.DisplayMetrics
-import android.view.LayoutInflater
 import android.widget.RadioGroup
-import android.widget.RadioButton
 import androidx.recyclerview.widget.GridLayoutManager
-import android.content.Context
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.DefaultItemAnimator
-
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.IntentFilter
+import android.content.ServiceConnection
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.os.IBinder
+import android.widget.ImageView
+import android.view.ContextThemeWrapper
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import android.widget.ProgressBar
 
 class MainActivity : AppCompatActivity() {
 
@@ -74,10 +84,20 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var trackStatsText: TextView
 
+    private lateinit var miniPlayer: LinearLayout
+    private lateinit var miniPlayerAvatar: ImageView
+    private lateinit var miniPlayerTrackName: TextView
+    private lateinit var miniPlayerArtist: TextView
+    private lateinit var miniPlayerPlayPause: ImageButton
+    private lateinit var miniPlayerPrevious: ImageButton
+    private lateinit var miniPlayerNext: ImageButton
+
+    private var musicService: MusicService? = null
+    private var isBound = false
+
     private var isAlbumReorderMode = false
     private var isArtistReorderMode = false
     private var isGenreReorderMode = false
-
 
     private var itemTouchHelperAlbums: ItemTouchHelper? = null
     private var itemTouchHelperArtists: ItemTouchHelper? = null
@@ -92,6 +112,7 @@ class MainActivity : AppCompatActivity() {
     private var searchQuery: String = ""
     private var sortType: Int = 0
     private var sortAscending: Boolean = true
+    private lateinit var miniPlayerProgressBar: ProgressBar
 
     private lateinit var playlistAdapter: PlaylistAdapter
     private lateinit var albumAdapter: AlbumAdapter
@@ -111,9 +132,49 @@ class MainActivity : AppCompatActivity() {
         selectedCoverUri = uri
     }
 
+    private val deletePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            Toast.makeText(this, "Разрешение получено, попробуйте снова", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val trackChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.example.music.TRACK_CHANGED" -> {
+                    updateMiniPlayer()
+                }
+                "com.example.music.PLAYBACK_STATE_CHANGED" -> {
+                    updateMiniPlayerButton()
+                }
+                "com.example.music.STATS_UPDATED" -> {
+                    trackAdapter.notifyDataSetChanged()
+                }
+            }
+        }
+    }
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as MusicService.MusicBinder
+            musicService = binder.getService()
+            isBound = true
+            updateMiniPlayer()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            musicService = null
+            isBound = false
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        ListeningStats.loadStats(this)
+        FavoritesManager.loadFavorites(this)
 
         mainLayout = findViewById(R.id.mainLayout)
         tabTracks = findViewById(R.id.tabTracks)
@@ -142,6 +203,34 @@ class MainActivity : AppCompatActivity() {
         btnReorderGenres = findViewById(R.id.btnReorderGenres)
         trackStatsText = findViewById(R.id.trackStatsText)
 
+        miniPlayer = findViewById(R.id.miniPlayer)
+        miniPlayerAvatar = findViewById(R.id.miniPlayerAvatar)
+        miniPlayerTrackName = findViewById(R.id.miniPlayerTrackName)
+        miniPlayerArtist = findViewById(R.id.miniPlayerArtist)
+        miniPlayerPlayPause = findViewById(R.id.miniPlayerPlayPause)
+        miniPlayerPrevious = findViewById(R.id.miniPlayerPrevious)
+        miniPlayerNext = findViewById(R.id.miniPlayerNext)
+        miniPlayerProgressBar = findViewById(R.id.miniPlayerProgressBar)
+
+        val filter = IntentFilter().apply {
+            addAction("com.example.music.TRACK_CHANGED")
+            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
+            addAction("com.example.music.STATS_UPDATED")
+        }
+        ContextCompat.registerReceiver(
+            this,
+            trackChangedReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        // Привязка к сервису
+        Intent(this, MusicService::class.java).also { intent ->
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
+
+        setupMiniPlayer()
+        setupMiniPlayerUpdates()
+
         btnReorderAlbums.setOnClickListener { toggleAlbumReorderMode() }
         btnReorderArtists.setOnClickListener { toggleArtistReorderMode() }
         btnReorderGenres.setOnClickListener { toggleGenreReorderMode() }
@@ -149,6 +238,7 @@ class MainActivity : AppCompatActivity() {
         setupAlbumItemTouchHelper()
         setupArtistItemTouchHelper()
         setupGenreItemTouchHelper()
+        updateStatusBarColor()
 
         createPlaylistButton = findViewById(R.id.createPlaylistButton)
 
@@ -169,13 +259,7 @@ class MainActivity : AppCompatActivity() {
         artistList.adapter = artistAdapter
 
         genreList.layoutManager = GridLayoutManager(this, 2)
-        genreAdapter = GenreAdapter(this, listOf()) { genre ->
-            // Обработка клика по жанру
-            val intent = Intent(this, GenreActivity::class.java).apply {
-                putExtra("GENRE_NAME", genre.name)
-            }
-            startActivity(intent)
-        }
+        genreAdapter = GenreAdapter(this, listOf())
         genreList.adapter = genreAdapter
 
         searchButton.setOnClickListener {
@@ -190,6 +274,7 @@ class MainActivity : AppCompatActivity() {
         tabAlbums.setOnClickListener { selectTab(tabAlbums) }
         tabArtists.setOnClickListener { selectTab(tabArtists) }
         tabGenres.setOnClickListener { selectTab(tabGenres) }
+
         val itemAnimator = DefaultItemAnimator()
         itemAnimator.moveDuration = 300
 
@@ -208,6 +293,115 @@ class MainActivity : AppCompatActivity() {
         setupButtonListeners()
         initPlaylistControls()
         restoreColor()
+    }
+
+    private fun setupMiniPlayerUpdates() {
+        CoroutineScope(Dispatchers.Main).launch {
+            while (true) {
+                if (MusicService.isPlaying) {
+                    musicService?.let { service ->
+                        val duration = service.getDuration()
+                        val currentPos = service.getCurrentPosition()
+                        if (duration > 0) {
+                            val progress = (currentPos * 100) / duration
+                            miniPlayerProgressBar.progress = progress
+                        }
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    private fun setupMiniPlayer() {
+        miniPlayer.setOnClickListener {
+            val currentTrack = MusicService.currentTrack
+            if (currentTrack != null) {
+                val intent = Intent(this, PlayerActivity::class.java).apply {
+                    putExtra("TRACK_PATH", currentTrack.path)
+                    putExtra("TRACK_NAME", currentTrack.name)
+                    putExtra("TRACK_ARTIST", currentTrack.artist)
+                }
+                startActivity(intent)
+            }
+        }
+
+        miniPlayerPlayPause.setOnClickListener {
+            if (MusicService.isPlaying) {
+                musicService?.pauseMusic()
+            } else {
+                musicService?.resumeMusic()
+            }
+            updateMiniPlayerButton()
+        }
+
+        miniPlayerPrevious.setOnClickListener {
+            if (QueueManager.moveToPreviousTrack(this)) {
+                val prevTrack = QueueManager.getCurrentTrack()
+                if (prevTrack != null && prevTrack.path != null && File(prevTrack.path).exists()) {
+                    musicService?.playTrack(prevTrack.path)
+                }
+            }
+        }
+
+        miniPlayerNext.setOnClickListener {
+            if (QueueManager.moveToNextTrack(this)) {
+                val nextTrack = QueueManager.getCurrentTrack()
+                if (nextTrack != null && nextTrack.path != null && File(nextTrack.path).exists()) {
+                    musicService?.playTrack(nextTrack.path)
+                }
+            }
+        }
+    }
+
+    private fun updateMiniPlayer() {
+        if (MusicService.currentTrack != null) {
+            miniPlayer.visibility = View.VISIBLE
+            miniPlayerTrackName.text = MusicService.currentTrack?.name
+            miniPlayerArtist.text = MusicService.currentTrack?.artist ?: "Unknown Artist"
+
+            // Обновляем прогресс
+            musicService?.let { service ->
+                val duration = service.getDuration()
+                val currentPos = service.getCurrentPosition()
+                if (duration > 0) {
+                    val progress = (currentPos * 100) / duration
+                    miniPlayerProgressBar.progress = progress
+                }
+            }
+
+            loadMiniPlayerCover(MusicService.currentTrack?.path, miniPlayerAvatar)
+            updateMiniPlayerButton()
+        } else {
+            miniPlayer.visibility = View.GONE
+        }
+    }
+
+    private fun updateMiniPlayerButton() {
+        if (MusicService.isPlaying) {
+            miniPlayerPlayPause.setImageResource(R.drawable.ic_pause)
+        } else {
+            miniPlayerPlayPause.setImageResource(R.drawable.ic_play)
+        }
+    }
+
+    private fun loadMiniPlayerCover(trackPath: String?, imageView: ImageView) {
+        if (trackPath != null) {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(trackPath)
+                val artBytes = retriever.embeddedPicture
+                if (artBytes != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                    imageView.setImageBitmap(bitmap)
+                } else {
+                    imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+                }
+                retriever.release()
+            } catch (e: Exception) {
+                imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+            }
+        }
     }
 
     private fun initPlaylistControls() {
@@ -237,6 +431,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         trackStatsText.text = "$tracksText • $durationText"
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == TrackAdapter.DELETE_PERMISSION_REQUEST) {
+            if (resultCode == RESULT_OK) {
+                val path = TrackAdapter.pendingDeletePath
+                val position = TrackAdapter.pendingDeletePosition
+
+                if (path != null && position >= 0) {
+                    Toast.makeText(this, "Удаление разрешено, попробуйте еще раз", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Удаление отменено", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupPlaylistItemTouchHelper() {
@@ -299,27 +510,75 @@ class MainActivity : AppCompatActivity() {
             }
 
             playlistAdapter.onPlaylistMoved = { fromPos, toPos ->
-                // Обработка уже в togglePlaylistReorderMode при сохранении
             }
         }
     }
 
     private fun loadAlbumsData() {
-        val albums = AlbumManager.getAlbumsFromTracks(this)
-        albumsOrder = loadAlbumOrder(albums).toMutableList()
-        albumAdapter.updateAlbums(albumsOrder)
-    }
+        lifecycleScope.launch {
+            // Показываем кэш сразу
+            val cachedAlbums = DataCache.loadAlbums(this@MainActivity)
+            if (cachedAlbums != null && cachedAlbums.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    albumsOrder = loadAlbumOrder(cachedAlbums).toMutableList()
+                    albumAdapter.updateAlbums(albumsOrder)
+                }
+            }
+            // Загружаем свежие данные
+            val freshAlbums = withContext(Dispatchers.IO) {
+                AlbumManager.getAlbumsFromTracks(this@MainActivity)
+            }
 
+            withContext(Dispatchers.Main) {
+                albumsOrder = loadAlbumOrder(freshAlbums).toMutableList()
+                albumAdapter.updateAlbums(albumsOrder)
+            }
+
+            DataCache.saveAlbums(this@MainActivity, freshAlbums)
+        }
+    }
     private fun loadArtistsData() {
-        val artists = ArtistManager.getArtistsFromTracks(this)
-        artistsOrder = loadArtistOrder(artists).toMutableList()
-        artistAdapter.updateArtists(artistsOrder)
-    }
+        lifecycleScope.launch {
+            // Показываем кэш сразу
+            val cachedArtists = DataCache.loadArtists(this@MainActivity)
+            if (cachedArtists != null && cachedArtists.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    artistsOrder = loadArtistOrder(cachedArtists).toMutableList()
+                    artistAdapter.updateArtists(artistsOrder)
+                }
+            }
+            // Загружаем свежие данные
+            val freshArtists = withContext(Dispatchers.IO) {
+                ArtistManager.getArtistsFromTracks(this@MainActivity)
+            }
 
+            withContext(Dispatchers.Main) {
+                artistsOrder = loadArtistOrder(freshArtists).toMutableList()
+                artistAdapter.updateArtists(artistsOrder)
+            }
+
+            DataCache.saveArtists(this@MainActivity, freshArtists)
+        }
+    }
     private fun loadGenresData() {
-        val genres = GenreManager.getGenresFromTracks(this)
-        genresOrder = loadGenreOrder(genres).toMutableList()
-        genreAdapter.updateGenres(genresOrder)
+        lifecycleScope.launch {
+            // Показываем кэш сразу
+            val cachedGenres = DataCache.loadGenres(this@MainActivity)
+            if (cachedGenres != null && cachedGenres.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    genresOrder = loadGenreOrder(cachedGenres).toMutableList()
+                    genreAdapter.updateGenres(genresOrder)
+                }
+            }
+            // Загружаем свежие данные
+            val freshGenres = GenreManager.getGenresFromTracksAsync(this@MainActivity)
+            withContext(Dispatchers.Main) {
+                genresOrder = loadGenreOrder(freshGenres).toMutableList()
+                genreAdapter.updateGenres(genresOrder)
+            }
+
+            DataCache.saveGenres(this@MainActivity, freshGenres)
+        }
     }
 
     private fun onShuffleClick() {
@@ -437,28 +696,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectTab(selectedTab: LinearLayout) {
-        // Скрываем все индикаторы
         findViewById<View>(R.id.tabTracksIndicator).visibility = View.GONE
         findViewById<View>(R.id.tabPlaylistsIndicator).visibility = View.GONE
         findViewById<View>(R.id.tabAlbumsIndicator).visibility = View.GONE
         findViewById<View>(R.id.tabArtistsIndicator).visibility = View.GONE
         findViewById<View>(R.id.tabGenresIndicator).visibility = View.GONE
 
-        // Меняем цвет всех вкладок на белый
         (tabTracks.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
         (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
         (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
         (tabArtists.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
         (tabGenres.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
 
-        // Скрываем весь контент
         contentTracks.visibility = View.GONE
         contentPlaylists.visibility = View.GONE
         contentAlbums.visibility = View.GONE
         contentArtists.visibility = View.GONE
         contentGenres.visibility = View.GONE
 
-        // Скрываем все кнопки
         findViewById<LinearLayout>(R.id.trackButtons).visibility = View.GONE
         findViewById<LinearLayout>(R.id.playlistButtons).visibility = View.GONE
         findViewById<LinearLayout>(R.id.albumButtons).visibility = View.GONE
@@ -466,14 +721,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.genreButtons).visibility = View.GONE
         trackStatsText.visibility = View.GONE
 
-        // Показываем выбранную вкладку
         when (selectedTab.id) {
             R.id.tabTracks -> {
                 findViewById<View>(R.id.tabTracksIndicator).visibility = View.VISIBLE
                 (tabTracks.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.accent_color))
                 contentTracks.visibility = View.VISIBLE
                 findViewById<LinearLayout>(R.id.trackButtons).visibility = View.VISIBLE
-                trackStatsText.visibility = View.VISIBLE  // <-- Добавьте эту строку для показа статистики
+                trackStatsText.visibility = View.VISIBLE
                 checkPermissionsAndLoadTracks()
             }
             R.id.tabPlaylists -> {
@@ -549,7 +803,6 @@ class MainActivity : AppCompatActivity() {
         val btnApplySort = dialogView.findViewById<Button>(R.id.btnApplySort)
         val btnCancelSort = dialogView.findViewById<Button>(R.id.btnCancelSort)
 
-        // Устанавливаем текущие значения
         when (sortType) {
             0 -> sortTypeGroup.check(R.id.sortByDate)
             1 -> sortTypeGroup.check(R.id.sortByName)
@@ -591,55 +844,81 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         dialog.window?.setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this, android.R.color.black)))
+
+        val titleView = dialog.findViewById<TextView>(android.R.id.title)
+        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 
-    private fun applyFilterAndSort(notifyAdapter: Boolean) {
+    private fun applyFilterAndSort(notify: Boolean) {
         filteredTracks.clear()
 
-        val filtered = if (searchQuery.isEmpty()) {
-            tracks
+        if (searchQuery.isEmpty()) {
+            filteredTracks.addAll(tracks)
         } else {
-            tracks.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.artist?.contains(searchQuery, ignoreCase = true) == true
+            val query = searchQuery.lowercase()
+            filteredTracks.addAll(tracks.filter {
+                it.name?.lowercase()?.contains(query) == true ||
+                        it.artist?.lowercase()?.contains(query) == true ||
+                        it.albumName?.lowercase()?.contains(query) == true
+            })
+        }
+
+        when (sortType) {
+            0 -> {
+                if (sortAscending) {
+                    filteredTracks.sortBy { it.dateModified }
+                } else {
+                    filteredTracks.sortByDescending { it.dateModified }
+                }
+            }
+            1 -> {
+                if (sortAscending) {
+                    filteredTracks.sortBy { it.name?.lowercase() }
+                } else {
+                    filteredTracks.sortByDescending { it.name?.lowercase() }
+                }
+            }
+            2 -> {
+                if (sortAscending) {
+                    filteredTracks.sortBy { it.artist?.lowercase() }
+                } else {
+                    filteredTracks.sortByDescending { it.artist?.lowercase() }
+                }
+            }
+            3 -> {
+                if (sortAscending) {
+                    filteredTracks.sortBy { it.duration }
+                } else {
+                    filteredTracks.sortByDescending { it.duration }
+                }
             }
         }
 
-        val sorted = when (sortType) {
-            0 -> if (sortAscending) filtered.sortedBy { it.dateModified } else filtered.sortedByDescending { it.dateModified }
-            1 -> if (sortAscending) filtered.sortedBy { it.name } else filtered.sortedByDescending { it.name }
-            2 -> if (sortAscending) filtered.sortedBy { it.artist } else filtered.sortedByDescending { it.artist }
-            3 -> if (sortAscending) filtered.sortedBy { it.duration } else filtered.sortedByDescending { it.duration }
-            else -> filtered
-        }
-
-        filteredTracks.addAll(sorted)
-        updateTrackStats(filteredTracks)
-
-        if (notifyAdapter) {
+        if (notify) {
             trackAdapter.notifyDataSetChanged()
         }
+
+        updateTrackStats(filteredTracks)
     }
 
     private fun showPopupMenu(view: View) {
-        val popupMenu = PopupMenu(this, view)
-        popupMenu.menuInflater.inflate(R.menu.main_menu, popupMenu.menu)
-
-        popupMenu.setOnMenuItemClickListener { menuItem ->
+        val wrapper = ContextThemeWrapper(this, R.style.Base_Theme_Music)
+        val popup = PopupMenu(wrapper, view)
+        popup.menuInflater.inflate(R.menu.main_menu, popup.menu)
+        popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.menu_settings -> {
-                    val intent = Intent(this, SettingsActivity::class.java)
-                    startActivity(intent)
-                    true
-                }
                 R.id.menu_queue -> {
                     showQueueDialog()
+                    true
+                }
+                R.id.menu_settings -> {
+                    startActivity(Intent(this, SettingsActivity::class.java))
                     true
                 }
                 else -> false
             }
         }
-        popupMenu.show()
+        popup.show()
     }
 
     private fun showQueueDialog() {
@@ -676,10 +955,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        ListeningStats.loadStats(this)
         restoreColor()
+        trackAdapter.notifyDataSetChanged()
         PlaylistManager.cleanupDeletedTracks(this)
+        updateMiniPlayer()
+        updateMiniPlayerButton()
+        updateStatusBarColor()
 
-        // Обновляем данные в зависимости от активной вкладки
         if (contentPlaylists.visibility == View.VISIBLE) {
             loadPlaylistsData()
         } else if (contentAlbums.visibility == View.VISIBLE) {
@@ -792,68 +1075,86 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadTracks() {
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DATE_MODIFIED
-        )
-
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-        val sortOrder = "${MediaStore.Audio.Media.DATE_MODIFIED} DESC"
-
-        contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            null,
-            sortOrder
-        )?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-            val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-            val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
-
-            tracks.clear()
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idColumn).toString()
-                val title = cursor.getString(titleColumn)
-                val artist = cursor.getString(artistColumn)
-                val albumId = cursor.getLong(albumIdColumn)
-                val albumName = cursor.getString(albumColumn)
-                val path = cursor.getString(dataColumn)
-                val duration = cursor.getLong(durationColumn)
-                val dateModified = cursor.getLong(dateModifiedColumn)
-
-                if (path != null && File(path).exists()) {
-                    tracks.add(
-                        Track(
-                            id = id,
-                            name = title,
-                            artist = artist,
-                            albumId = albumId,
-                            albumName = albumName,
-                            path = path,
-                            duration = duration,
-                            dateModified = dateModified
-                        )
-                    )
+        lifecycleScope.launch {
+            // 1. Показываем кэш сразу
+            val cachedTracks = DataCache.loadTracks(this@MainActivity)
+            if (cachedTracks != null && cachedTracks.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    tracks.clear()
+                    tracks.addAll(cachedTracks)
+                    applyFilterAndSort(true)
                 }
             }
-        }
+            // 2. Загружаем свежие данные в фоне
+            val freshTracks = withContext(Dispatchers.IO) {
+                val loadedTracks = mutableListOf<Track>()
 
-        applyFilterAndSort(true)
+                val projection = arrayOf(
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.TITLE,
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.ALBUM_ID,
+                    MediaStore.Audio.Media.ALBUM,
+                    MediaStore.Audio.Media.DATA,
+                    MediaStore.Audio.Media.DURATION,
+                    MediaStore.Audio.Media.DATE_MODIFIED
+                )
+                val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+                val sortOrder = "${MediaStore.Audio.Media.DATE_MODIFIED} DESC"
+                contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    null,
+                    sortOrder
+                )?.use { cursor ->
+                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                    val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                    val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+                    val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                    val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                    val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                    val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(idColumn).toString()
+                        val title = cursor.getString(titleColumn)
+                        val artist = cursor.getString(artistColumn)
+                        val albumId = cursor.getLong(albumIdColumn)
+                        val albumName = cursor.getString(albumColumn)
+                        val path = cursor.getString(dataColumn)
+                        val duration = cursor.getLong(durationColumn)
+                        val dateModified = cursor.getLong(dateModifiedColumn)
+                        if (path != null && File(path).exists()) {
+                            loadedTracks.add(
+                                Track(
+                                    id = id,
+                                    name = title,
+                                    artist = artist,
+                                    albumId = albumId,
+                                    albumName = albumName,
+                                    path = path,
+                                    duration = duration,
+                                    dateModified = dateModified
+                                )
+                            )
+                        }
+                    }
+                }
+
+                loadedTracks
+            }
+            // 3. Обновляем UI и сохраняем кэш
+            withContext(Dispatchers.Main) {
+                tracks.clear()
+                tracks.addAll(freshTracks)
+                applyFilterAndSort(true)
+            }
+
+            DataCache.saveTracks(this@MainActivity, freshTracks)
+        }
     }
 
-    // ========== ALBUM REORDER ==========
     private fun setupAlbumItemTouchHelper() {
         val callback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
@@ -916,7 +1217,6 @@ class MainActivity : AppCompatActivity() {
             albumMap[name]?.let { orderedAlbums.add(it) }
         }
 
-        // Добавляем новые альбомы в конец
         albums.forEach { album ->
             if (!orderedAlbums.contains(album)) {
                 orderedAlbums.add(album)
@@ -926,7 +1226,6 @@ class MainActivity : AppCompatActivity() {
         return orderedAlbums
     }
 
-    // ========== ARTIST REORDER ==========
     private fun setupArtistItemTouchHelper() {
         val callback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
@@ -998,7 +1297,6 @@ class MainActivity : AppCompatActivity() {
         return orderedArtists
     }
 
-    // ========== GENRE REORDER ==========
     private fun setupGenreItemTouchHelper() {
         val callback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
@@ -1068,5 +1366,34 @@ class MainActivity : AppCompatActivity() {
         }
 
         return orderedGenres
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(trackChangedReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        if (isBound) {
+            unbindService(serviceConnection)
+            isBound = false
+        }
+    }
+
+    private fun updateStatusBarColor() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val sharedPreferences = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            val scheme = sharedPreferences.getInt("color_scheme", 0)
+
+            val color = when (scheme) {
+                1 -> ContextCompat.getColor(this, android.R.color.darker_gray)
+                2 -> ContextCompat.getColor(this, android.R.color.holo_blue_dark)
+                3 -> ContextCompat.getColor(this, android.R.color.holo_green_dark)
+                else -> ContextCompat.getColor(this, android.R.color.black)
+            }
+
+            window.statusBarColor = color
+        }
     }
 }

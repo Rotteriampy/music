@@ -33,6 +33,7 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+
 }
 
 dependencies {
@@ -49,5 +50,13 @@ dependencies {
     implementation (libs.kotlinx.coroutines.core)
     implementation (libs.kotlinx.coroutines.android)
     implementation("com.google.code.gson:gson:2.8.9")
-    implementation("org.jaudiotagger:jaudiotagger:3.0.1")
+    implementation("net.jthink:jaudiotagger:3.0.1")
+    implementation("androidx.activity:activity-ktx:1.8.0")
+    implementation("androidx.media:media:1.7.0")
+    implementation("androidx.core:core:1.9.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("androidx.media:media:1.7.0")
+    implementation("com.google.code.gson:gson:2.10.1")
 }

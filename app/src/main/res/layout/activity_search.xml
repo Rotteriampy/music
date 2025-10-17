@@ -42,33 +42,66 @@
     </LinearLayout>
 
     <!-- Выбор раздела поиска -->
-    <RadioGroup
-        android:id="@+id/searchTypeGroup"
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:scrollbars="none"
         android:layout_marginBottom="16dp">
 
-        <RadioButton
-            android:id="@+id/rbTracks"
-            android:layout_width="0dp"
+        <RadioGroup
+            android:id="@+id/searchTypeGroup"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Треки"
-            android:textColor="@android:color/white"
-            android:buttonTint="@color/accent_color"
-            android:checked="true" />
+            android:orientation="horizontal">
 
-        <RadioButton
-            android:id="@+id/rbPlaylists"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Плейлисты"
-            android:textColor="@android:color/white"
-            android:buttonTint="@color/accent_color" />
+            <RadioButton
+                android:id="@+id/rbTracks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Треки"
+                android:textColor="@android:color/white"
+                android:buttonTint="@color/accent_color"
+                android:checked="true"
+                android:paddingEnd="16dp" />
 
-    </RadioGroup>
+            <RadioButton
+                android:id="@+id/rbPlaylists"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Плейлисты"
+                android:textColor="@android:color/white"
+                android:buttonTint="@color/accent_color"
+                android:paddingEnd="16dp" />
+
+            <RadioButton
+                android:id="@+id/rbAlbums"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Альбомы"
+                android:textColor="@android:color/white"
+                android:buttonTint="@color/accent_color"
+                android:paddingEnd="16dp" />
+
+            <RadioButton
+                android:id="@+id/rbArtists"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Исполнители"
+                android:textColor="@android:color/white"
+                android:buttonTint="@color/accent_color"
+                android:paddingEnd="16dp" />
+
+            <RadioButton
+                android:id="@+id/rbGenres"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Жанры"
+                android:textColor="@android:color/white"
+                android:buttonTint="@color/accent_color" />
+
+        </RadioGroup>
+
+    </HorizontalScrollView>
 
     <!-- Разделитель -->
     <View

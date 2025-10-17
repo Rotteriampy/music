@@ -14,6 +14,7 @@ object QueueManager {
     private var currentQueue: MutableList<Track> = mutableListOf()
     private var currentTrackIndex: Int = 0
     private var originalQueue: List<Track> = listOf()
+    private var isManualQueueMode = false
 
     fun initializeQueueFromPosition(context: Context, tracks: List<Track>, startPosition: Int) {
         val availableTracks = tracks.filter { it.path != null && File(it.path).exists() }
@@ -21,6 +22,7 @@ object QueueManager {
         currentQueue.addAll(availableTracks)
         originalQueue = availableTracks
         currentTrackIndex = if (startPosition in availableTracks.indices) startPosition else 0
+        isManualQueueMode = false // Сброс режима при новом запуске
         saveQueue(context)
     }
 
@@ -35,6 +37,7 @@ object QueueManager {
             }
             currentQueue.addAll(shuffled)
             currentTrackIndex = 0
+            isManualQueueMode = false // Сброс режима при перемешивании
             saveQueue(context)
         }
     }
@@ -48,6 +51,7 @@ object QueueManager {
         currentQueue.clear()
         currentQueue.addAll(shuffled)
         currentTrackIndex = 0
+        isManualQueueMode = false // Сброс режима при перемешивании
         saveQueue(context)
     }
 
@@ -58,8 +62,26 @@ object QueueManager {
             currentQueue.addAll(originalQueue)
             currentTrackIndex = currentQueue.indexOfFirst { it.path == currentTrack?.path }
                 .coerceAtLeast(0)
+            isManualQueueMode = false // Сброс режима при восстановлении
             saveQueue(context)
         }
+    }
+
+    fun addToManualQueue(context: Context, track: Track) {
+        if (!isManualQueueMode) {
+            // Первое добавление - очищаем очередь, оставляя только текущий трек
+            val currentTrack = getCurrentTrack()
+            currentQueue.clear()
+            if (currentTrack != null) {
+                currentQueue.add(currentTrack)
+            }
+            currentTrackIndex = 0
+            isManualQueueMode = true
+        }
+
+        // Добавляем новый трек в конец
+        currentQueue.add(track)
+        saveQueue(context)
     }
 
     fun getCurrentQueue(): List<Track> = currentQueue.toList()
@@ -98,6 +120,7 @@ object QueueManager {
         currentQueue.clear()
         originalQueue = listOf()
         currentTrackIndex = 0
+        isManualQueueMode = false
         saveQueue(context)
     }
 
@@ -110,6 +133,7 @@ object QueueManager {
         editor.putString(QUEUE_KEY, gson.toJson(currentQueue))
         editor.putString("original_queue", gson.toJson(originalQueue))
         editor.putInt(CURRENT_TRACK_INDEX_KEY, currentTrackIndex)
+        editor.putBoolean("is_manual_queue_mode", isManualQueueMode)
         editor.apply()
     }
 
@@ -118,6 +142,7 @@ object QueueManager {
         val queueJson = prefs.getString(QUEUE_KEY, null)
         val originalQueueJson = prefs.getString("original_queue", null)
         currentTrackIndex = prefs.getInt(CURRENT_TRACK_INDEX_KEY, 0)
+        isManualQueueMode = prefs.getBoolean("is_manual_queue_mode", false)
         val gson = Gson()
         currentQueue = if (queueJson != null) {
             gson.fromJson(queueJson, object : TypeToken<MutableList<Track>>() {}.type) ?: mutableListOf()

@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import android.os.Build
 
 class AlbumActivity : AppCompatActivity() {
 
@@ -44,6 +45,10 @@ class AlbumActivity : AppCompatActivity() {
         albumName = intent.getStringExtra("ALBUM_NAME")
 
         restoreColor()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
+        }
 
         if (albumName != null) {
             albumNameText.text = albumName
@@ -178,5 +183,11 @@ class AlbumActivity : AppCompatActivity() {
             else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
         }
         albumRootLayout.background = color
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Обновляем адаптер при возврате на экран
+        trackAdapter.notifyDataSetChanged()
     }
 }

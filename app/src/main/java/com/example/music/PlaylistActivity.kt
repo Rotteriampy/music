@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.recyclerview.widget.ItemTouchHelper
 import java.io.File
 import android.provider.MediaStore
+import android.os.Build
 
 class PlaylistActivity : AppCompatActivity() {
 
@@ -56,9 +57,14 @@ class PlaylistActivity : AppCompatActivity() {
 
         restoreColor()
 
-        if (playlist != null) {
-            playlistNameText.text = playlist!!.name
-            trackAdapter = TrackAdapter(playlist!!.tracks.toMutableList(), isFromPlaylist = true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
+        }
+
+        val currentPlaylist = playlist
+        if (currentPlaylist != null) {
+            playlistNameText.text = currentPlaylist.name
+            trackAdapter = TrackAdapter(currentPlaylist.tracks.toMutableList(), isFromPlaylist = true)
             playlistTracksList.adapter = trackAdapter
 
             setupItemTouchHelper()
@@ -91,12 +97,13 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun playPlaylist() {
-        if (playlist == null || playlist!!.tracks.isEmpty()) {
+        val currentPlaylist = playlist
+        if (currentPlaylist == null || currentPlaylist.tracks.isEmpty()) {
             Toast.makeText(this, "Плейлист пуст", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val availableTracks = playlist!!.tracks.filter { it.path != null && File(it.path).exists() }
+        val availableTracks = currentPlaylist.tracks.filter { it.path != null && File(it.path).exists() }
         if (availableTracks.isEmpty()) {
             Toast.makeText(this, "Нет доступных треков", Toast.LENGTH_SHORT).show()
             return
@@ -114,12 +121,13 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun shuffleAndPlayPlaylist() {
-        if (playlist == null || playlist!!.tracks.isEmpty()) {
+        val currentPlaylist = playlist
+        if (currentPlaylist == null || currentPlaylist.tracks.isEmpty()) {
             Toast.makeText(this, "Плейлист пуст", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val availableTracks = playlist!!.tracks.filter { it.path != null && File(it.path).exists() }
+        val availableTracks = currentPlaylist.tracks.filter { it.path != null && File(it.path).exists() }
         if (availableTracks.isEmpty()) {
             Toast.makeText(this, "Нет доступных треков", Toast.LENGTH_SHORT).show()
             return
@@ -133,14 +141,14 @@ class PlaylistActivity : AppCompatActivity() {
                 putExtra("TRACK_PATH", firstTrack.path)
                 putExtra("TRACK_NAME", firstTrack.name)
                 putExtra("TRACK_ARTIST", firstTrack.artist)
-                putExtra("PLAYBACK_MODE", "SHUFFLE")  // Добавьте эту строку
+                putExtra("PLAYBACK_MODE", "SHUFFLE")
             }
             startActivity(intent)
         }
     }
 
     private fun deleteTrackAt(position: Int) {
-        if (playlist == null) return
+        val currentPlaylist = playlist ?: return
 
         val currentTracks = trackAdapter.getTracks()
         if (position !in currentTracks.indices) return
@@ -152,7 +160,7 @@ class PlaylistActivity : AppCompatActivity() {
             .setMessage("Удалить \"${trackToDelete.name}\" из плейлиста?")
             .setPositiveButton("Удалить") { _, _ ->
                 trackAdapter.removeItem(position)
-                playlist!!.tracks.removeAt(position)
+                currentPlaylist.tracks.removeAt(position)
                 PlaylistManager.savePlaylists(this)
             }
             .setNegativeButton("Отмена", null)
@@ -202,13 +210,15 @@ class PlaylistActivity : AppCompatActivity() {
         super.onResume()
         restoreColor()
         refreshPlaylist()
+        trackAdapter.notifyDataSetChanged()
     }
 
     private fun refreshPlaylist() {
         if (!isReorderMode) {
             playlist = PlaylistManager.getPlaylists().find { it.id == playlistId }
-            if (playlist != null && ::trackAdapter.isInitialized) {
-                trackAdapter.updateTracks(playlist!!.tracks.toList())
+            val currentPlaylist = playlist
+            if (currentPlaylist != null && ::trackAdapter.isInitialized) {
+                trackAdapter.updateTracks(currentPlaylist.tracks.toMutableList())
             }
         }
     }
@@ -226,16 +236,18 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun onDeletePlaylistClick() {
-        if (playlist == null) return
-        if (playlist!!.id == Playlist.FAVORITES_ID) {
+        val currentPlaylist = playlist ?: return
+
+        if (currentPlaylist.id == Playlist.FAVORITES_ID) {
             Toast.makeText(this, "Избранное нельзя удалить", Toast.LENGTH_SHORT).show()
             return
         }
+
         AlertDialog.Builder(this)
             .setTitle("Удалить плейлист")
-            .setMessage("Вы уверены, что хотите удалить плейлист \"${playlist!!.name}\"?")
+            .setMessage("Вы уверены, что хотите удалить плейлист \"${currentPlaylist.name}\"?")
             .setPositiveButton("Удалить") { _, _ ->
-                PlaylistManager.removePlaylist(this, playlist!!.id)
+                PlaylistManager.removePlaylist(this, currentPlaylist.id)
                 returnToPlaylists()
             }
             .setNegativeButton("Отмена", null)
@@ -267,46 +279,45 @@ class PlaylistActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
 
-                if (playlist != null) {
+                val currentPlaylist = playlist
+                if (currentPlaylist != null) {
                     var addedCount = 0
                     selectedTracks.forEach { selectedTrack ->
-                        if (!playlist!!.tracks.any { it.path == selectedTrack.path }) {
-                            PlaylistManager.addTrackToPlaylist(this, playlist!!.id, selectedTrack)
+                        if (!currentPlaylist.tracks.any { it.path == selectedTrack.path }) {
+                            PlaylistManager.addTrackToPlaylist(this, currentPlaylist.id, selectedTrack)
                             addedCount++
                         }
                     }
 
                     playlist = PlaylistManager.getPlaylists().find { it.id == playlistId }
 
-                    if (playlist != null) {
-                        trackAdapter.updateTracks(playlist!!.tracks.toList())
+                    val updatedPlaylist = playlist
+                    if (updatedPlaylist != null) {
+                        trackAdapter.updateTracks(updatedPlaylist.tracks.toMutableList())
                     }
+
+                    val message = if (addedCount > 0) {
+                        "Добавлено треков: $addedCount"
+                    } else {
+                        "Все выбранные треки уже в плейлисте"
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Отмена", null)
             .create()
 
         dialog.show()
-
-        // Устанавливаем черный фон для окна диалога
-        dialog.window?.setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this, android.R.color.black)))
-
-        // Делаем текст заголовка и кнопок белыми
-        val titleView = dialog.findViewById<TextView>(resources.getIdentifier("alertTitle", "id", "android"))
-        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 
     private fun getAllTracks(): List<Track> {
         val tracks = mutableListOf<Track>()
-
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.DATE_MODIFIED
@@ -326,18 +337,18 @@ class PlaylistActivity : AppCompatActivity() {
             val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
             val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn).toString()
                 val title = cursor.getString(titleColumn)
                 val artist = cursor.getString(artistColumn)
                 val albumId = cursor.getLong(albumIdColumn)
+                val album = cursor.getString(albumColumn)
                 val path = cursor.getString(dataColumn)
                 val duration = cursor.getLong(durationColumn)
-                val dateModified = cursor.getLong(dateModifiedColumn)
 
                 tracks.add(
                     Track(
@@ -345,11 +356,9 @@ class PlaylistActivity : AppCompatActivity() {
                         name = title,
                         artist = artist,
                         albumId = albumId,
-                        albumName = null,  // <- Добавьте это поле
-                        genre = null,      // <- И это поле
+                        albumName = album,
                         path = path,
-                        duration = duration,
-                        dateModified = dateModified
+                        duration = duration
                     )
                 )
             }
@@ -358,13 +367,11 @@ class PlaylistActivity : AppCompatActivity() {
         return tracks
     }
 
-    private fun onBackClick() {
-        returnToPlaylists()
+    private fun returnToPlaylists() {
+        finish()
     }
 
-    private fun returnToPlaylists() {
-        val sharedPreferences = getSharedPreferences("app_state", Context.MODE_PRIVATE)
-        sharedPreferences.edit().putBoolean("should_open_playlists", true).apply()
+    private fun onBackClick() {
         finish()
     }
 }
