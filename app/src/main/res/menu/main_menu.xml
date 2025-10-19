@@ -6,4 +6,7 @@
     <item
         android:id="@+id/menu_queue"
         android:title="Очередь" />
+    <item
+        android:id="@+id/menu_stats"
+        android:title="Статистика" />
 </menu>

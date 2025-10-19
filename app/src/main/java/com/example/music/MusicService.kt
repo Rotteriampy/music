@@ -381,32 +381,53 @@ class MusicService : Service() {
 
         val duration = getDuration()
         val currentPos = getCurrentPosition()
+        if (duration <= 0) return
 
-        if (duration > 0) {
-            val playedPercentage = (currentPos.toFloat() / duration.toFloat()) * 100
+        val playedPercentage = (currentPos.toFloat() / duration.toFloat()) * 100
 
-            // Если lastCheckedPosition = -1, значит только что была перемотка - пропускаем эту проверку
-            if (lastCheckedPosition == -1) {
-                lastCheckedPosition = currentPos
-                Log.d("PLAY_COUNT", "First check after seek, skipping. Setting lastPos=$currentPos")
-                return
-            }
-
-            val positionDiff = currentPos - lastCheckedPosition
-            val isNaturalProgress = positionDiff in 100..2000 // Минимум 100мс прогресса
-
-            Log.d("PLAY_COUNT", "currentPos=$currentPos, lastPos=$lastCheckedPosition, diff=$positionDiff, percentage=$playedPercentage%, natural=$isNaturalProgress")
-
+        // Если только что была перемотка — пропустить этот тик
+        if (lastCheckedPosition == -1) {
             lastCheckedPosition = currentPos
+            Log.d("PLAY_COUNT", "Skip after seek; set lastPos=$currentPos")
+            return
+        }
 
-            if (playedPercentage >= 90f && isNaturalProgress) {
-                hasCountedAsPlayed = true
-                Log.d("PLAY_COUNT", "✅ COUNTED!")
-                ListeningStats.incrementPlayCount(this, currentTrackPath!!)
-                Intent("com.example.music.STATS_UPDATED").apply {
-                    setPackage(applicationContext.packageName)
-                }.also { sendBroadcast(it) }
-            }
+        val positionDiff = currentPos - lastCheckedPosition
+        val isNaturalProgress = positionDiff in 100..2000
+        lastCheckedPosition = currentPos
+
+        if (playedPercentage >= 90f && isNaturalProgress) {
+            hasCountedAsPlayed = true
+            Log.d("PLAY_COUNT", "✅ COUNTED!")
+            ListeningStats.incrementPlayCount(this, currentTrackPath!!)
+            // Запись события в историю для графиков
+            try {
+                val ct = currentTrack
+                var genre: String? = null
+                try {
+                    if (currentTrackPath != null) {
+                        val r = MediaMetadataRetriever()
+                        r.setDataSource(currentTrackPath)
+                        genre = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                        r.release()
+                    }
+                } catch (_: Exception) {}
+                PlayHistory.append(
+                    this,
+                    PlayHistory.PlayEvent(
+                        timestamp = System.currentTimeMillis(),
+                        trackPath = ct?.path,
+                        trackName = ct?.name,
+                        artist = ct?.artist,
+                        albumName = ct?.albumName,
+                        genre = genre
+                    )
+                )
+            } catch (_: Exception) { }
+
+            Intent("com.example.music.STATS_UPDATED").apply {
+                setPackage(applicationContext.packageName)
+            }.also { sendBroadcast(it) }
         }
     }
 

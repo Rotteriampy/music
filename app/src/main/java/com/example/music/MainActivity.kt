@@ -930,6 +930,10 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, SettingsActivity::class.java))
                     true
                 }
+                R.id.menu_stats -> {
+                    startActivity(Intent(this, StatsActivity::class.java))
+                    true
+                }
                 else -> false
             }
         }

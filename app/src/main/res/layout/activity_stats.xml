@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/statsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/black">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btnBackStats"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_back_triangle"
+            android:background="@null"
+            android:contentDescription="Назад"
+            android:tint="@android:color/white" />
+
+        <TextView
+            android:id="@+id/statsTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Статистика"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:layout_marginStart="12dp" />
+    </LinearLayout>
+
+    <!-- Селекторы режима/периода/диапазона -->
+    <LinearLayout
+        android:id="@+id/selectorModes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="12dp">
+
+        <Button android:id="@+id/btnModeAll" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Общее" />
+        <Button android:id="@+id/btnModePlaylists" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Плейлисты" />
+        <Button android:id="@+id/btnModeArtists" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Исполнители" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/selectorModes2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="6dp">
+        <Button android:id="@+id/btnModeAlbums" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Альбомы" />
+        <Button android:id="@+id/btnModeGenres" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Жанры" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/selectorPeriod"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+        <Button android:id="@+id/btnPeriodDays" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Дни" />
+        <Button android:id="@+id/btnPeriodWeeks" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Недели" />
+        <Button android:id="@+id/btnPeriodMonths" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Месяцы" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/selectorRange"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="6dp">
+        <Button android:id="@+id/btnRange7" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="7" />
+        <Button android:id="@+id/btnRange30" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="30" />
+        <Button android:id="@+id/btnRange90" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="90" />
+        <Button android:id="@+id/btnRange365" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="365" />
+        <Button android:id="@+id/btnRangeAll" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Все" />
+    </LinearLayout>
+
+    <!-- Область графика -->
+    <com.github.mikephil.charting.charts.LineChart
+        android:id="@+id/lineChart"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="10dp" />
+
+    <!-- Дополнительные данные -->
+    <LinearLayout
+        android:id="@+id/extraPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/extraTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:text="Всего прослушиваний (за все время)" />
+
+        <TextView
+            android:id="@+id/extraValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:text="0" />
+    </LinearLayout>
+
+</LinearLayout>
