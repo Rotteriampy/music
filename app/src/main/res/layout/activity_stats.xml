@@ -32,63 +32,56 @@
             android:layout_marginStart="12dp" />
     </LinearLayout>
 
-    <!-- Селекторы режима/периода/диапазона -->
-    <LinearLayout
-        android:id="@+id/selectorModes"
+    <!-- Выбор типа (одна кнопка с выпадающим меню) -->
+    <Spinner
+        android:id="@+id/spMode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="12dp">
+        android:layout_marginTop="12dp"
+        android:spinnerMode="dropdown" />
 
-        <Button android:id="@+id/btnModeAll" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Общее" />
-        <Button android:id="@+id/btnModePlaylists" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Плейлисты" />
-        <Button android:id="@+id/btnModeArtists" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Исполнители" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/selectorModes2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="6dp">
-        <Button android:id="@+id/btnModeAlbums" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Альбомы" />
-        <Button android:id="@+id/btnModeGenres" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Жанры" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/selectorPeriod"
+    <RadioGroup
+        android:id="@+id/rgPeriod"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
         android:layout_marginTop="8dp">
-        <Button android:id="@+id/btnPeriodDays" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Дни" />
-        <Button android:id="@+id/btnPeriodWeeks" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Недели" />
-        <Button android:id="@+id/btnPeriodMonths" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Месяцы" />
-    </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/selectorRange"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="6dp">
-        <Button android:id="@+id/btnRange7" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="7" />
-        <Button android:id="@+id/btnRange30" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="30" />
-        <Button android:id="@+id/btnRange90" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="90" />
-        <Button android:id="@+id/btnRange365" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="365" />
-        <Button android:id="@+id/btnRangeAll" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Все" />
-    </LinearLayout>
+        <RadioButton
+            android:id="@+id/rbDays"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Дни"
+            android:textColor="@android:color/white"
+            android:buttonTint="@android:color/white"
+            android:layout_marginEnd="12dp" />
 
-    <!-- Область графика -->
+        <RadioButton
+            android:id="@+id/rbWeeks"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Недели"
+            android:textColor="@android:color/white"
+            android:buttonTint="@android:color/white"
+            android:layout_marginEnd="12dp" />
+
+        <RadioButton
+            android:id="@+id/rbMonths"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Месяцы"
+            android:textColor="@android:color/white"
+            android:buttonTint="@android:color/white" />
+    </RadioGroup>
+
+    <!-- Диапазон убран: ось X регулируется кнопками периода (дни/недели/месяцы) -->
+
+    <!-- Область графика: на ширину экрана, увеличенная высота -->
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/lineChart"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="240dp"
         android:layout_marginTop="10dp" />
 
     <!-- Дополнительные данные -->
@@ -104,16 +97,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@android:color/white"
-            android:textSize="16sp"
-            android:text="Всего прослушиваний (за все время)" />
+            android:textSize="22sp"
+            android:layout_marginTop="20dp"
+            android:text="Всего прослушиваний" />
 
         <TextView
             android:id="@+id/extraValue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@android:color/white"
-            android:textSize="22sp"
-            android:textStyle="bold"
+            android:textSize="18sp"
             android:text="0" />
     </LinearLayout>
 

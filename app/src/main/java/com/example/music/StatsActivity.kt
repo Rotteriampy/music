@@ -1,6 +1,7 @@
 package com.example.music
 
 import android.os.Bundle
+import android.content.Intent
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -10,6 +11,7 @@ import com.github.mikephil.charting.components.Legend
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.ValueFormatter
 import java.util.*
 import kotlin.math.max
 
@@ -22,26 +24,15 @@ class StatsActivity : AppCompatActivity() {
     private lateinit var extraValue: TextView
 
     // Selectors
-    private lateinit var btnModeAll: Button
-    private lateinit var btnModePlaylists: Button
-    private lateinit var btnModeArtists: Button
-    private lateinit var btnModeAlbums: Button
-    private lateinit var btnModeGenres: Button
-    private lateinit var btnDays: Button
-    private lateinit var btnWeeks: Button
-    private lateinit var btnMonths: Button
-    private lateinit var btnR7: Button
-    private lateinit var btnR30: Button
-    private lateinit var btnR90: Button
-    private lateinit var btnR365: Button
-    private lateinit var btnRAll: Button
+    private lateinit var spMode: Spinner
+    private lateinit var rgPeriod: RadioGroup
 
     private enum class Mode { ALL, PLAYLISTS, ARTISTS, ALBUMS, GENRES }
     private enum class Period { DAY, WEEK, MONTH }
 
     private var mode = Mode.ALL
     private var period = Period.DAY
-    private var rangeDays: Int? = 30 // null => all
+    // Диапазон больше не используется — строим по всем данным
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,20 +43,16 @@ class StatsActivity : AppCompatActivity() {
         chart = findViewById(R.id.lineChart)
         extraTitle = findViewById(R.id.extraTitle)
         extraValue = findViewById(R.id.extraValue)
+        // Hidden developer shortcut: long-press title to seed test data
+        findViewById<TextView>(R.id.statsTitle).setOnLongClickListener {
+            val added = seedTestData()
+            android.widget.Toast.makeText(this, "Добавлено тестовых событий: $added", android.widget.Toast.LENGTH_SHORT).show()
+            refresh()
+            true
+        }
 
-        btnModeAll = findViewById(R.id.btnModeAll)
-        btnModePlaylists = findViewById(R.id.btnModePlaylists)
-        btnModeArtists = findViewById(R.id.btnModeArtists)
-        btnModeAlbums = findViewById(R.id.btnModeAlbums)
-        btnModeGenres = findViewById(R.id.btnModeGenres)
-        btnDays = findViewById(R.id.btnPeriodDays)
-        btnWeeks = findViewById(R.id.btnPeriodWeeks)
-        btnMonths = findViewById(R.id.btnPeriodMonths)
-        btnR7 = findViewById(R.id.btnRange7)
-        btnR30 = findViewById(R.id.btnRange30)
-        btnR90 = findViewById(R.id.btnRange90)
-        btnR365 = findViewById(R.id.btnRange365)
-        btnRAll = findViewById(R.id.btnRangeAll)
+        spMode = findViewById(R.id.spMode)
+        rgPeriod = findViewById(R.id.rgPeriod)
 
         restoreColor()
 
@@ -97,39 +84,73 @@ class StatsActivity : AppCompatActivity() {
         chart.axisLeft.textColor = ContextCompat.getColor(this, android.R.color.white)
         chart.axisRight.isEnabled = false
         chart.xAxis.textColor = ContextCompat.getColor(this, android.R.color.white)
+        // Целочисленные значения по осям
+        chart.axisLeft.granularity = 1f
+        chart.xAxis.granularity = 1f
+        chart.axisLeft.valueFormatter = object : ValueFormatter() {
+            override fun getAxisLabel(value: Float, axis: com.github.mikephil.charting.components.AxisBase?): String {
+                return value.toInt().toString()
+            }
+        }
+        chart.xAxis.valueFormatter = object : ValueFormatter() {
+            override fun getAxisLabel(value: Float, axis: com.github.mikephil.charting.components.AxisBase?): String {
+                return value.toInt().toString()
+            }
+        }
         chart.setNoDataText("Нет данных для выбранного периода")
         chart.setNoDataTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 
     private fun initSelectors() {
-        fun modeClick(m: Mode) { mode = m; refresh() }
-        btnModeAll.setOnClickListener { modeClick(Mode.ALL) }
-        btnModePlaylists.setOnClickListener { modeClick(Mode.PLAYLISTS) }
-        btnModeArtists.setOnClickListener { modeClick(Mode.ARTISTS) }
-        btnModeAlbums.setOnClickListener { modeClick(Mode.ALBUMS) }
-        btnModeGenres.setOnClickListener { modeClick(Mode.GENRES) }
+        val modes = listOf("Общее" to Mode.ALL, "Плейлисты" to Mode.PLAYLISTS, "Исполнители" to Mode.ARTISTS, "Альбомы" to Mode.ALBUMS, "Жанры" to Mode.GENRES)
+        val modeAdapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, modes.map { it.first }) {
+            override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                val v = super.getView(position, convertView, parent)
+                (v as? TextView)?.setTextColor(ContextCompat.getColor(this@StatsActivity, android.R.color.white))
+                return v
+            }
+            override fun getDropDownView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                val v = super.getDropDownView(position, convertView, parent)
+                (v as? TextView)?.setTextColor(ContextCompat.getColor(this@StatsActivity, android.R.color.black))
+                return v
+            }
+        }.apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        spMode.adapter = modeAdapter
+        spMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                mode = modes[position].second
+                refresh()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
-        btnDays.setOnClickListener { period = Period.DAY; refresh() }
-        btnWeeks.setOnClickListener { period = Period.WEEK; refresh() }
-        btnMonths.setOnClickListener { period = Period.MONTH; refresh() }
-
-        btnR7.setOnClickListener { rangeDays = 7; refresh() }
-        btnR30.setOnClickListener { rangeDays = 30; refresh() }
-        btnR90.setOnClickListener { rangeDays = 90; refresh() }
-        btnR365.setOnClickListener { rangeDays = 365; refresh() }
-        btnRAll.setOnClickListener { rangeDays = null; refresh() }
+        // RadioGroup for period selection
+        rgPeriod.setOnCheckedChangeListener { _, checkedId ->
+            period = when (checkedId) {
+                R.id.rbDays -> Period.DAY
+                R.id.rbWeeks -> Period.WEEK
+                R.id.rbMonths -> Period.MONTH
+                else -> Period.DAY
+            }
+            refresh()
+        }
+        // Default selection
+        findViewById<RadioButton>(R.id.rbDays).isChecked = true
     }
 
     private fun refresh() {
         val events = PlayHistory.readAll(this)
-        val now = System.currentTimeMillis()
-        val fromTs = rangeDays?.let { now - it * 24L * 3600_000L }
-        val filtered = if (fromTs != null) events.filter { it.timestamp >= fromTs } else events
+        val filtered = events // больше не фильтруем по диапазону — используем все данные
 
         if (filtered.isEmpty()) {
             chart.clear()
-            extraTitle.text = if (mode == Mode.ALL) "Всего прослушиваний (за все время)" else "ТОП групп"
-            extraValue.text = if (mode == Mode.ALL) totalAllTime().toString() else "0"
+            if (mode == Mode.ALL) {
+                extraTitle.text = "Всего прослушиваний: ${totalAllTime()}"
+                extraValue.text = ""
+            } else {
+                extraTitle.text = "Рейтинг"
+                extraValue.text = "0"
+            }
             return
         }
 
@@ -141,7 +162,7 @@ class StatsActivity : AppCompatActivity() {
         )
         var colorIdx = 0
 
-        // Подписи X будут по индексу; для человекочитаемых дат можно позже добавить форматтер
+        // Подписи X — индексы бакетов (целые числа)
         bucketed.forEach { (seriesName, points) ->
             val entries = points.mapIndexed { idx, count -> Entry(idx.toFloat(), count.toFloat()) }
             val set = LineDataSet(entries, seriesName).apply {
@@ -157,17 +178,14 @@ class StatsActivity : AppCompatActivity() {
         chart.data = lineData
         chart.invalidate()
 
-        // Доп. данные
+        // Доп. данные (всегда за всё время)
         if (mode == Mode.ALL) {
-            extraTitle.text = "Всего прослушиваний (за все время)"
-            extraValue.text = totalAllTime().toString()
+            extraTitle.text = "Всего прослушиваний: ${totalAllTime()}"
+            extraValue.text = ""
         } else {
-            val totals = when (mode) {
-                Mode.PLAYLISTS, Mode.ARTISTS, Mode.ALBUMS, Mode.GENRES -> bucketed.mapValues { (_, v) -> v.sum() }
-                else -> emptyMap()
-            }.toList().sortedByDescending { it.second }.take(5)
-            extraTitle.text = "ТОП групп"
-            extraValue.text = if (totals.isEmpty()) "—" else totals.joinToString("\n") { (k, v) -> "$k — $v" }
+            val totals = allTimeTotalsForMode(mode).take(5)
+            extraTitle.text = "Рейтинг"
+            extraValue.text = if (totals.isEmpty()) "—" else totals.joinToString("\n") { (k, v) -> "$k: $v" }
         }
     }
 
@@ -183,6 +201,69 @@ class StatsActivity : AppCompatActivity() {
             }
             sum
         } catch (_: Exception) { 0 }
+    }
+
+    private fun readAllStatsPairs(): List<Pair<String, Int>> {
+        val prefs = getSharedPreferences("listening_stats", MODE_PRIVATE)
+        val json = prefs.getString("stats", null) ?: return emptyList()
+        return try {
+            val arr = org.json.JSONArray(json)
+            val list = ArrayList<Pair<String, Int>>(arr.length())
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val path = obj.optString("path", null)
+                val count = obj.optInt("count", 0)
+                if (!path.isNullOrBlank() && count > 0) list.add(path to count)
+            }
+            list
+        } catch (_: Exception) { emptyList() }
+    }
+
+    private fun allTimeTotalsForMode(mode: Mode): List<Pair<String, Int>> {
+        val stats = readAllStatsPairs()
+        if (stats.isEmpty()) return emptyList()
+
+        return when (mode) {
+            Mode.PLAYLISTS -> {
+                val playlists = PlaylistManager.getPlaylists().filter { it.tracks.isNotEmpty() }
+                val pathToPlaylists = hashMapOf<String, MutableList<String>>()
+                playlists.forEach { pl ->
+                    pl.tracks.forEach { t ->
+                        val p = t.path ?: return@forEach
+                        pathToPlaylists.getOrPut(p) { mutableListOf() }.add(pl.name)
+                    }
+                }
+                val totals = linkedMapOf<String, Int>()
+                stats.forEach { (path, count) ->
+                    val groups = pathToPlaylists[path]
+                    if (!groups.isNullOrEmpty()) {
+                        groups.forEach { g -> totals[g] = (totals[g] ?: 0) + count }
+                    }
+                }
+                totals.toList().sortedByDescending { it.second }
+            }
+            Mode.ARTISTS, Mode.ALBUMS, Mode.GENRES -> {
+                val totals = linkedMapOf<String, Int>()
+                stats.forEach { (path, count) ->
+                    var key = "Unknown"
+                    try {
+                        val r = android.media.MediaMetadataRetriever()
+                        r.setDataSource(path)
+                        key = when (mode) {
+                            Mode.ARTISTS -> r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                            Mode.ALBUMS -> r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                            Mode.GENRES -> r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE)
+                            else -> null
+                        } ?: "Unknown"
+                        r.release()
+                    } catch (_: Exception) {}
+                    if (key.isBlank()) key = "Unknown"
+                    totals[key] = (totals[key] ?: 0) + count
+                }
+                totals.toList().sortedByDescending { it.second }
+            }
+            else -> emptyList()
+        }
     }
 
     private fun aggregate(events: List<PlayHistory.PlayEvent>): Map<String, List<Int>> {
@@ -208,19 +289,46 @@ class StatsActivity : AppCompatActivity() {
             }
             Mode.ARTISTS -> {
                 events.forEach { e ->
-                    val name = (e.artist ?: "Unknown").ifBlank { "Unknown" }
+                    var name = (e.artist ?: "").trim()
+                    if (name.isBlank()) {
+                        try {
+                            val r = android.media.MediaMetadataRetriever()
+                            e.trackPath?.let { r.setDataSource(it) }
+                            name = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: ""
+                            r.release()
+                        } catch (_: Exception) {}
+                    }
+                    if (name.isBlank()) name = "Unknown"
                     idxFor(e.timestamp)?.let { add(name, it) }
                 }
             }
             Mode.ALBUMS -> {
                 events.forEach { e ->
-                    val name = (e.albumName ?: "Unknown").ifBlank { "Unknown" }
+                    var name = (e.albumName ?: "").trim()
+                    if (name.isBlank()) {
+                        try {
+                            val r = android.media.MediaMetadataRetriever()
+                            e.trackPath?.let { r.setDataSource(it) }
+                            name = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: ""
+                            r.release()
+                        } catch (_: Exception) {}
+                    }
+                    if (name.isBlank()) name = "Unknown"
                     idxFor(e.timestamp)?.let { add(name, it) }
                 }
             }
             Mode.GENRES -> {
                 events.forEach { e ->
-                    val name = (e.genre ?: "Unknown").ifBlank { "Unknown" }
+                    var name = (e.genre ?: "").trim()
+                    if (name.isBlank()) {
+                        try {
+                            val r = android.media.MediaMetadataRetriever()
+                            e.trackPath?.let { r.setDataSource(it) }
+                            name = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE) ?: ""
+                            r.release()
+                        } catch (_: Exception) {}
+                    }
+                    if (name.isBlank()) name = "Unknown"
                     idxFor(e.timestamp)?.let { add(name, it) }
                 }
             }
@@ -249,8 +357,8 @@ class StatsActivity : AppCompatActivity() {
             }
         }
 
-        // Ограничим кол-во серий (для читаемости) топ-N по сумме, если их очень много
-        if (mode != Mode.ALL && seriesMap.size > 12) {
+        // Для Плейлистов оставим ограничение топ-12; для Альбомов/Жанров/Исполнителей показываем все группы
+        if (mode == Mode.PLAYLISTS && seriesMap.size > 12) {
             val top = seriesMap.entries
                 .map { it.key to it.value.sum() }
                 .sortedByDescending { it.second }
@@ -266,18 +374,26 @@ class StatsActivity : AppCompatActivity() {
     }
 
     private fun buildBuckets(events: List<PlayHistory.PlayEvent>): List<Long> {
-        val minTs = events.minOfOrNull { it.timestamp } ?: System.currentTimeMillis()
-        val maxTs = events.maxOfOrNull { it.timestamp } ?: minTs
-        val fromTs = rangeDays?.let { max(maxTs - it * 24L * 3600_000L, 0L) } ?: minTs
+        // Начинаем ось времени с момента установки приложения
+        val startTs = getFirstInstallTime()
+        val endTs = System.currentTimeMillis()
 
         val list = mutableListOf<Long>()
-        var cur = bucketStart(fromTs)
-        val end = bucketStart(maxTs)
+        var cur = bucketStart(startTs)
+        val end = bucketStart(endTs)
         while (cur <= end) {
             list.add(cur)
             cur = nextBucket(cur)
         }
         return list
+    }
+
+    private fun getFirstInstallTime(): Long {
+        return try {
+            packageManager.getPackageInfo(packageName, 0).firstInstallTime
+        } catch (_: Exception) {
+            System.currentTimeMillis()
+        }
     }
 
     private fun bucketStart(ts: Long): Long {
@@ -303,5 +419,52 @@ class StatsActivity : AppCompatActivity() {
             Period.MONTH -> cal.add(Calendar.MONTH, 1)
         }
         return bucketStart(cal.timeInMillis)
+    }
+
+    // Dev helper: generate synthetic events across artists/albums/genres and playlists
+    private fun seedTestData(): Int {
+        val now = System.currentTimeMillis()
+        val dayMs = 24L * 3600_000L
+        val start = now - 120L * dayMs // 120 дней назад
+
+        val artists = listOf("Alpha", "Beta", "Gamma")
+        val albums = listOf("A-One", "B-Two", "C-Three")
+        val genres = listOf("Rock", "Pop", "Jazz")
+
+        // Соберём доступные пути из плейлистов (чтобы режим Плейлисты тоже заполнился)
+        val playlistTracks: List<String> = try {
+            PlaylistManager.getPlaylists()
+                .flatMap { it.tracks }
+                .mapNotNull { it.path }
+        } catch (_: Exception) { emptyList() }
+
+        var added = 0
+        val rnd = kotlin.random.Random(System.currentTimeMillis())
+        // Каждый день создадим 3-8 событий со смешанными группами
+        var ts = start
+        while (ts <= now) {
+            val eventsToday = 3 + rnd.nextInt(6)
+            repeat(eventsToday) {
+                val a = artists[rnd.nextInt(artists.size)]
+                val al = albums[rnd.nextInt(albums.size)]
+                val g = genres[rnd.nextInt(genres.size)]
+                // Иногда используем реальный путь из плейлистов, если есть
+                val p = if (playlistTracks.isNotEmpty() && rnd.nextBoolean()) playlistTracks[rnd.nextInt(playlistTracks.size)] else null
+                val ev = PlayHistory.PlayEvent(
+                    timestamp = ts + rnd.nextLong(0, dayMs),
+                    trackPath = p,
+                    trackName = "Track-${rnd.nextInt(999)}",
+                    artist = a,
+                    albumName = al,
+                    genre = g
+                )
+                PlayHistory.append(this, ev)
+                added++
+            }
+            ts += dayMs
+        }
+        // Уведомим график
+        sendBroadcast(Intent("com.example.music.STATS_UPDATED").setPackage(packageName))
+        return added
     }
 }

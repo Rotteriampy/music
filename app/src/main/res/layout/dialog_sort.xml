@@ -61,6 +61,13 @@
             android:text="По продолжительности"
             android:textColor="@android:color/white" />
 
+        <RadioButton
+            android:id="@+id/sortByPlays"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="По прослушиваниям"
+            android:textColor="@android:color/white" />
+
     </RadioGroup>
 
     <!-- Направление сортировки -->

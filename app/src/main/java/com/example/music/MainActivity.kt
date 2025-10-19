@@ -823,6 +823,7 @@ class MainActivity : AppCompatActivity() {
             1 -> sortTypeGroup.check(R.id.sortByName)
             2 -> sortTypeGroup.check(R.id.sortByArtist)
             3 -> sortTypeGroup.check(R.id.sortByDuration)
+            4 -> sortTypeGroup.check(R.id.sortByPlays)
         }
 
         sortDirectionText.text = if (sortAscending) "↑" else "↓"
@@ -847,6 +848,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.sortByName -> 1
                 R.id.sortByArtist -> 2
                 R.id.sortByDuration -> 3
+                R.id.sortByPlays -> 4
                 else -> 0
             }
             applyFilterAndSort(true)
@@ -905,6 +907,13 @@ class MainActivity : AppCompatActivity() {
                     filteredTracks.sortBy { it.duration }
                 } else {
                     filteredTracks.sortByDescending { it.duration }
+                }
+            }
+            4 -> {
+                if (sortAscending) {
+                    filteredTracks.sortBy { ListeningStats.getPlayCount(it.path ?: "") }
+                } else {
+                    filteredTracks.sortByDescending { ListeningStats.getPlayCount(it.path ?: "") }
                 }
             }
         }
