@@ -1,3 +1,4 @@
+
 package com.example.music
 
 import android.content.Context
@@ -81,10 +82,12 @@ class SearchActivity : AppCompatActivity() {
         playlistAdapter = PlaylistAdapter(mutableListOf(), this)
         albumAdapter = AlbumAdapter(listOf(), this)
         artistAdapter = ArtistAdapter(listOf(), this)
+        genreAdapter = GenreAdapter(this, listOf())
 
         // По умолчанию - поиск треков
         resultsRecyclerView.layoutManager = LinearLayoutManager(this)
         resultsRecyclerView.adapter = trackAdapter
+        performSearch("")
 
         // Поиск
         searchEditText.addTextChangedListener(object : TextWatcher {

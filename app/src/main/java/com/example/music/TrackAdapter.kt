@@ -6,6 +6,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.graphics.Color
+
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -104,6 +106,15 @@ class TrackAdapter(
             moreButton.setOnClickListener { view ->
                 adapter.showTrackOptions(track, position, context)
             }
+
+            val currentPath = QueueManager.getCurrentTrack()?.path
+            if (MusicService.isPlaying && currentPath != null && currentPath == track.path) {
+                trackName.setTextColor(Color.parseColor("#FFA500"))
+                trackArtist.setTextColor(Color.parseColor("#FFA500"))
+            } else {
+                trackName.setTextColor(Color.WHITE)
+                trackArtist.setTextColor(Color.parseColor("#B0B0B0"))
+            }
         }
     }
 
@@ -115,6 +126,23 @@ class TrackAdapter(
     override fun onBindViewHolder(holder: TrackViewHolder, position: Int) {
         val track = tracks[position]
         holder.bind(track, position, this, holder.itemView.context)
+    }
+
+    override fun onBindViewHolder(holder: TrackViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isNotEmpty()) {
+            // Lightweight update: only (de)highlight current item, no cover reloads
+            val track = tracks[position]
+            val currentPath = QueueManager.getCurrentTrack()?.path
+            if (MusicService.isPlaying && currentPath != null && currentPath == track.path) {
+                holder.trackName.setTextColor(android.graphics.Color.parseColor("#FFA500"))
+                holder.trackArtist.setTextColor(android.graphics.Color.parseColor("#FFA500"))
+            } else {
+                holder.trackName.setTextColor(android.graphics.Color.WHITE)
+                holder.trackArtist.setTextColor(android.graphics.Color.parseColor("#B0B0B0"))
+            }
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
+        }
     }
 
     override fun getItemCount(): Int = tracks.size
@@ -162,7 +190,7 @@ class TrackAdapter(
                 if (bitmap != null) {
                     imageView.setImageBitmap(bitmap)
                 } else {
-                    imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+                    imageView.setImageResource(R.drawable.ic_album_placeholder)
                 }
             }
         }

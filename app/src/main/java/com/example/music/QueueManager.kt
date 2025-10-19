@@ -90,12 +90,34 @@ object QueueManager {
         return if (currentTrackIndex in currentQueue.indices) currentQueue[currentTrackIndex] else null
     }
 
+    fun getCurrentTrackIndex(): Int = currentTrackIndex
+
     fun getNextTrack(): Track? {
         return if (currentTrackIndex + 1 < currentQueue.size) currentQueue[currentTrackIndex + 1] else null
     }
 
     fun getPreviousTrack(): Track? {
         return if (currentTrackIndex > 0) currentQueue[currentTrackIndex - 1] else null
+    }
+
+    fun moveItem(context: Context, fromPosition: Int, toPosition: Int) {
+        if (fromPosition == toPosition) return
+        if (fromPosition !in currentQueue.indices || toPosition !in currentQueue.indices) return
+
+        val item = currentQueue.removeAt(fromPosition)
+        currentQueue.add(toPosition, item)
+
+        // Корректируем индекс текущего трека
+        currentTrackIndex = when {
+            fromPosition == currentTrackIndex -> toPosition
+            fromPosition < currentTrackIndex && toPosition >= currentTrackIndex -> currentTrackIndex - 1
+            fromPosition > currentTrackIndex && toPosition <= currentTrackIndex -> currentTrackIndex + 1
+            else -> currentTrackIndex
+        }
+
+        // При ручном изменении порядка помечаем режим как ручной
+        isManualQueueMode = true
+        saveQueue(context)
     }
 
     fun moveToNextTrack(context: Context): Boolean {
@@ -114,6 +136,13 @@ object QueueManager {
             return true
         }
         return false
+    }
+
+    fun setCurrentIndex(context: Context, index: Int) {
+        if (index in currentQueue.indices) {
+            currentTrackIndex = index
+            saveQueue(context)
+        }
     }
 
     fun clearQueue(context: Context) {
@@ -150,5 +179,15 @@ object QueueManager {
         originalQueue = if (originalQueueJson != null) {
             gson.fromJson(originalQueueJson, object : TypeToken<List<Track>>() {}.type) ?: listOf()
         } else currentQueue.toList()
+    }
+
+    fun setQueueOrder(context: Context, newOrder: List<Track>) {
+        val currentPath = getCurrentTrack()?.path
+        currentQueue = newOrder.toMutableList()
+        currentTrackIndex = if (currentPath != null) {
+            currentQueue.indexOfFirst { it.path == currentPath }.coerceAtLeast(0)
+        } else 0
+        isManualQueueMode = true
+        saveQueue(context)
     }
 }

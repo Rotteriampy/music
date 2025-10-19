@@ -96,12 +96,12 @@ class PlaylistAdapter(
                             inputStream?.close()
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                holder.playlistCover.setImageResource(android.R.drawable.ic_menu_gallery)
+                                holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
                             }
                         }
                     }
                 }
-            } ?: holder.playlistCover.setImageResource(android.R.drawable.ic_menu_gallery)
+            } ?: holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
         }
 
         // Tracks info

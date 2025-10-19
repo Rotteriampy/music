@@ -148,6 +148,11 @@ class MusicService : Service() {
         hasCountedAsPlayed = false
         lastCheckedPosition = 0 // Добавьте эту строку
 
+        // Broadcast immediately so UI (lists/queue) updates highlighting without delay
+        Intent("com.example.music.TRACK_CHANGED").apply {
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
+
         mediaPlayer?.release()
         mediaPlayer = MediaPlayer().apply {
             try {
@@ -234,8 +239,6 @@ class MusicService : Service() {
         updatePlaybackState()
         showNotification()
         startPositionUpdates()
-
-        sendBroadcast(Intent("com.example.music.TRACK_CHANGED"))
     }
 
     fun pauseMusic() {
@@ -243,7 +246,9 @@ class MusicService : Service() {
         isPlaying = false
         updatePlaybackState()
         showNotification()
-        sendBroadcast(Intent("com.example.music.PLAYBACK_STATE_CHANGED"))
+        Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
     }
 
     fun resumeMusic() {
@@ -252,13 +257,19 @@ class MusicService : Service() {
         startPositionUpdates() // Добавьте этот вызов
         updatePlaybackState()
         showNotification()
-        sendBroadcast(Intent("com.example.music.PLAYBACK_STATE_CHANGED"))
+        Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
     }
 
     private fun playNext() {
         if (QueueManager.moveToNextTrack(this)) {
             val nextTrack = QueueManager.getCurrentTrack()
             if (nextTrack?.path != null) {
+                // Notify UI about current index change instantly
+                Intent("com.example.music.TRACK_CHANGED").apply {
+                    setPackage(applicationContext.packageName)
+                }.also { sendBroadcast(it) }
                 playTrack(nextTrack.path)
             } else {
                 Toast.makeText(this, "Следующий трек недоступен", Toast.LENGTH_SHORT).show()
@@ -269,9 +280,22 @@ class MusicService : Service() {
     }
 
     private fun playPrevious() {
+        // Если воспроизведение ушло дальше первых 5 секунд, перематываем в начало текущего трека
+        val positionMs = getCurrentPosition()
+        if (positionMs > 5000) {
+            seekTo(0)
+            updatePlaybackState()
+            showNotification()
+            return
+        }
+
+        // Иначе переходим к предыдущему треку
         if (QueueManager.moveToPreviousTrack(this)) {
             val previousTrack = QueueManager.getCurrentTrack()
             if (previousTrack?.path != null) {
+                Intent("com.example.music.TRACK_CHANGED").apply {
+                    setPackage(applicationContext.packageName)
+                }.also { sendBroadcast(it) }
                 playTrack(previousTrack.path)
             } else {
                 Toast.makeText(this, "Предыдущий трек недоступен", Toast.LENGTH_SHORT).show()
@@ -379,7 +403,9 @@ class MusicService : Service() {
                 hasCountedAsPlayed = true
                 Log.d("PLAY_COUNT", "✅ COUNTED!")
                 ListeningStats.incrementPlayCount(this, currentTrackPath!!)
-                sendBroadcast(Intent("com.example.music.STATS_UPDATED"))
+                Intent("com.example.music.STATS_UPDATED").apply {
+                    setPackage(applicationContext.packageName)
+                }.also { sendBroadcast(it) }
             }
         }
     }
@@ -410,8 +436,12 @@ class MusicService : Service() {
 
         mediaSession.isActive = false
 
-        sendBroadcast(Intent("com.example.music.TRACK_CHANGED"))
-        sendBroadcast(Intent("com.example.music.PLAYBACK_STATE_CHANGED"))
+        Intent("com.example.music.TRACK_CHANGED").apply {
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
+        Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)

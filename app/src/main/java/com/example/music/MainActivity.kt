@@ -77,6 +77,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnReorderPlaylists: ImageButton
 
     private lateinit var trackAdapter: TrackAdapter
+    private var lastHighlightedPath: String? = null
 
     private lateinit var btnReorderAlbums: ImageButton
     private lateinit var btnReorderArtists: ImageButton
@@ -145,9 +146,23 @@ class MainActivity : AppCompatActivity() {
             when (intent?.action) {
                 "com.example.music.TRACK_CHANGED" -> {
                     updateMiniPlayer()
+                    val newPath = QueueManager.getCurrentTrack()?.path
+                    val oldPath = lastHighlightedPath
+                    if (newPath != oldPath) {
+                        val oldIdx = if (oldPath != null) filteredTracks.indexOfFirst { it.path == oldPath } else -1
+                        val newIdx = if (newPath != null) filteredTracks.indexOfFirst { it.path == newPath } else -1
+                        if (oldIdx >= 0) trackList.post { trackAdapter.notifyItemChanged(oldIdx, "HL") }
+                        if (newIdx >= 0) trackList.post { trackAdapter.notifyItemChanged(newIdx, "HL") }
+                        lastHighlightedPath = newPath
+                    }
                 }
                 "com.example.music.PLAYBACK_STATE_CHANGED" -> {
                     updateMiniPlayerButton()
+                    val curPath = QueueManager.getCurrentTrack()?.path
+                    if (curPath != null) {
+                        val idx = filteredTracks.indexOfFirst { it.path == curPath }
+                        if (idx >= 0) trackList.post { trackAdapter.notifyItemChanged(idx, "HL") }
+                    }
                 }
                 "com.example.music.STATS_UPDATED" -> {
                     trackAdapter.notifyDataSetChanged()
@@ -395,11 +410,11 @@ class MainActivity : AppCompatActivity() {
                     val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
                     imageView.setImageBitmap(bitmap)
                 } else {
-                    imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+                    imageView.setImageResource(R.drawable.ic_album_placeholder)
                 }
                 retriever.release()
             } catch (e: Exception) {
-                imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+                imageView.setImageResource(R.drawable.ic_album_placeholder)
             }
         }
     }
@@ -908,7 +923,7 @@ class MainActivity : AppCompatActivity() {
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.menu_queue -> {
-                    showQueueDialog()
+                    startActivity(Intent(this, QueueActivity::class.java))
                     true
                 }
                 R.id.menu_settings -> {

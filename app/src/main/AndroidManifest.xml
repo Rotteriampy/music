@@ -68,6 +68,14 @@
             android:name=".EditTrackActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".LyricsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".QueueActivity"
+            android:exported="false" />
+
         <service
             android:name=".MusicService"
             android:enabled="true"

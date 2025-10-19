@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/lyricsTitleInPlayer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/lyricsArtistInPlayer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#B0B0B0"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:layout_marginBottom="12dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+        <EditText
+            android:id="@+id/lyricsEditInPlayer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="top|start"
+            android:textColor="@android:color/white"
+            android:textColorHint="#808080"
+            android:hint="Введите текст песни..."
+            android:background="@android:color/transparent" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <Button
+            android:id="@+id/btnSaveLyricsInPlayer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Сохранить"
+            android:backgroundTint="@color/accent_color"
+            android:layout_marginTop="12dp" />
+
+        <Button
+            android:id="@+id/btnFindLyricsInPlayer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Найти"
+            android:layout_marginTop="8dp" />
+    </LinearLayout>
+
+</LinearLayout>

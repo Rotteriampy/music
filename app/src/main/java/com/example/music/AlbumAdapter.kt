@@ -3,6 +3,11 @@ package com.example.music
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.view.LayoutInflater
@@ -16,6 +21,10 @@ class AlbumAdapter(
     private var albums: List<Album>,
     private val context: Context
 ) : RecyclerView.Adapter<AlbumAdapter.AlbumViewHolder>() {
+
+    init {
+        albums = reorderUnknownFirst(albums)
+    }
 
     class AlbumViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val albumCover: ImageView = itemView.findViewById(R.id.playlistCover)
@@ -40,15 +49,36 @@ class AlbumAdapter(
         holder.albumName.text = customName ?: album.name
 
         // Загружаем обложку
-        if (customCoverUri != null) {
+        if (customName?.equals("<unknown>", ignoreCase = true) == true) {
+            holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
+        } else if (customCoverUri != null) {
             holder.albumCover.setImageURI(Uri.parse(customCoverUri))
         } else {
-            // Загружаем обложку из первого трека
-            val firstTrack = album.tracks.firstOrNull()
-            if (firstTrack?.path != null) {
-                loadAlbumCover(firstTrack.path, holder.albumCover)
-            } else {
-                holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
+            // Сперва используем кэш пути трека с обложкой (если уже определяли ранее)
+            val cachedTrackPath = prefs.getString("album_${album.name}_cover_track", null)
+            var set = false
+            if (cachedTrackPath != null) {
+                set = loadAlbumCover(cachedTrackPath, holder.albumCover)
+            }
+            // Если не удалось — ищем первый трек с обложкой и кэшируем его путь
+            if (!set) {
+                for (t in album.tracks) {
+                    val p = t.path ?: continue
+                    if (loadAlbumCover(p, holder.albumCover)) {
+                        prefs.edit().putString("album_${album.name}_cover_track", p).apply()
+                        set = true
+                        break
+                    }
+                }
+            }
+            if (!set) {
+                // Фолбэк: если имя не Unknown/<unknown> — буква, иначе плейсхолдер
+                val name = (customName ?: album.name).trim()
+                if (name.equals("Unknown", ignoreCase = true) || name.equals("<unknown>", ignoreCase = true)) {
+                    holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
+                } else {
+                    holder.albumCover.setImageBitmap(generateLetterCover(name))
+                }
             }
         }
 
@@ -67,7 +97,7 @@ class AlbumAdapter(
         holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
     }
 
-    private fun loadAlbumCover(trackPath: String, imageView: ImageView) {
+    private fun loadAlbumCover(trackPath: String, imageView: ImageView): Boolean {
         try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(trackPath)
@@ -75,19 +105,45 @@ class AlbumAdapter(
             if (artBytes != null) {
                 val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
                 imageView.setImageBitmap(bitmap)
-            } else {
-                imageView.setImageResource(R.drawable.ic_album_placeholder)
+                retriever.release()
+                return true
             }
             retriever.release()
         } catch (e: Exception) {
-            imageView.setImageResource(R.drawable.ic_album_placeholder)
+            // ignore
         }
+        return false
+    }
+
+    private fun generateLetterCover(name: String): Bitmap {
+        val size = 256
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawColor(Color.BLACK)
+
+        val letter = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.LEFT
+            textSize = size * 0.6f
+        }
+        val bounds = Rect()
+        paint.getTextBounds(letter, 0, letter.length, bounds)
+        val x = (size - bounds.width()) / 2f - bounds.left
+        val y = (size + bounds.height()) / 2f - bounds.bottom
+        canvas.drawText(letter, x, y, paint)
+        return bmp
     }
 
     override fun getItemCount(): Int = albums.size
 
     fun updateAlbums(newAlbums: List<Album>) {
-        albums = newAlbums
+        albums = reorderUnknownFirst(newAlbums)
         notifyDataSetChanged()
+    }
+
+    private fun reorderUnknownFirst(src: List<Album>): List<Album> {
+        val (unknowns, others) = src.partition { it.name.equals("Unknown", true) || it.name.equals("<unknown>", true) }
+        return unknowns + others
     }
 }

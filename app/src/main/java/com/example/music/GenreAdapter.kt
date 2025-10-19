@@ -3,6 +3,11 @@ package com.example.music
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.view.LayoutInflater
@@ -19,6 +24,7 @@ class GenreAdapter(
 
     init {
         setHasStableIds(true)
+        genres = reorderUnknownFirst(genres)
     }
 
     override fun getItemId(position: Int): Long {
@@ -45,18 +51,29 @@ class GenreAdapter(
         val customCoverUri = prefs.getString("genre_${genre.name}_cover", null)
 
         // Показываем название (кастомное или оригинальное)
-        holder.genreName.text = customName ?: genre.name
-
-        // Загружаем обложку
-        if (customCoverUri != null) {
-            holder.coverImage.setImageURI(Uri.parse(customCoverUri))
+        if (genre.name.equals("Unknown", ignoreCase = true)) {
+            holder.genreName.text = "<unknown>"
+            // Для Unknown используем стандартный плейсхолдер
+            holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
         } else {
-            // Загружаем обложку из первого трека
-            val firstTrack = genre.tracks.firstOrNull()
-            if (firstTrack?.path != null) {
-                loadCover(firstTrack.path, holder.coverImage)
+            holder.genreName.text = customName ?: genre.name
+        }
+
+        // Загружаем обложку (кроме Unknown)
+        if (!genre.name.equals("Unknown", ignoreCase = true)) {
+            if (customCoverUri != null) {
+                holder.coverImage.setImageURI(Uri.parse(customCoverUri))
             } else {
-                holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
+                // Ищем первый трек с обложкой
+                var set = false
+                for (t in genre.tracks) {
+                    val p = t.path ?: continue
+                    if (loadCover(p, holder.coverImage)) { set = true; break }
+                }
+                if (!set) {
+                    val displayName = (customName ?: genre.name).trim()
+                    holder.coverImage.setImageBitmap(generateLetterCover(displayName))
+                }
             }
         }
 
@@ -74,7 +91,7 @@ class GenreAdapter(
         holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
     }
 
-    private fun loadCover(trackPath: String, imageView: ImageView) {
+    private fun loadCover(trackPath: String, imageView: ImageView): Boolean {
         try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(trackPath)
@@ -82,19 +99,45 @@ class GenreAdapter(
             if (artBytes != null) {
                 val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
                 imageView.setImageBitmap(bitmap)
-            } else {
-                imageView.setImageResource(R.drawable.ic_album_placeholder)
+                retriever.release()
+                return true
             }
             retriever.release()
         } catch (e: Exception) {
-            imageView.setImageResource(R.drawable.ic_album_placeholder)
+            // ignore
         }
+        return false
+    }
+
+    private fun generateLetterCover(name: String): Bitmap {
+        val size = 256
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        canvas.drawColor(Color.BLACK)
+
+        val letter = name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.LEFT
+            textSize = size * 0.6f
+        }
+        val bounds = Rect()
+        paint.getTextBounds(letter, 0, letter.length, bounds)
+        val x = (size - bounds.width()) / 2f - bounds.left
+        val y = (size + bounds.height()) / 2f - bounds.bottom
+        canvas.drawText(letter, x, y, paint)
+        return bmp
     }
 
     override fun getItemCount(): Int = genres.size
 
     fun updateGenres(newGenres: List<Genre>) {
-        genres = newGenres
+        genres = reorderUnknownFirst(newGenres)
         notifyDataSetChanged()
+    }
+
+    private fun reorderUnknownFirst(src: List<Genre>): List<Genre> {
+        val (unknowns, others) = src.partition { it.name.equals("Unknown", true) || it.name.equals("<unknown>", true) }
+        return unknowns + others
     }
 }

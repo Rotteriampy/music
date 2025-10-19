@@ -6,23 +6,7 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <!-- Отступ сверху -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="20dp" />
-
-    <!-- Название плейлиста -->
-    <TextView
-        android:id="@+id/playlistNameText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@android:color/white"
-        android:gravity="center"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Строка с кнопками -->
+    <!-- Верхняя панель: Назад слева, Удалить справа -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -38,69 +22,119 @@
             android:contentDescription="Назад"
             android:tint="@android:color/white" />
 
-        <ImageButton
-            android:id="@+id/btnReorder"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_reorder"
-            android:background="@null"
-            android:contentDescription="Изменить порядок"
-            android:tint="@android:color/white"
-            android:layout_marginStart="8dp" />
-
-        <!-- Пространство между левыми и центральными кнопками -->
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
-
-        <!-- Кнопка воспроизведения плейлиста -->
-        <!-- Кнопка воспроизведения плейлиста -->
-        <ImageButton
-            android:id="@+id/btnPlayPlaylist"
-            android:layout_width="64dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_play"
-            android:background="@drawable/oval_accent_background"
-            android:contentDescription="Воспроизвести плейлист"
-            android:scaleType="centerInside"
-            android:layout_marginEnd="12dp" />
-
-        <!-- Кнопка перемешивания плейлиста -->
-        <ImageButton
-            android:id="@+id/btnShufflePlaylist"
-            android:layout_width="64dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_shuffle"
-            android:background="@drawable/oval_accent_background"
-            android:contentDescription="Перемешать и воспроизвести"
-            android:scaleType="centerInside" />
-
-        <!-- Пространство между центральными и правыми кнопками -->
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <ImageButton
-            android:id="@+id/btnAddTrack"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_playlist_add"
-            android:background="@null"
-            android:contentDescription="Добавить трек"
-            android:tint="@android:color/white"
-            android:layout_marginEnd="8dp" />
 
         <ImageButton
             android:id="@+id/btnDeletePlaylist"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@drawable/ic_delete"
-            android:background="@null"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Удалить плейлист"
             android:tint="@android:color/white" />
+    </LinearLayout>
 
+    <!-- Обложка плейлиста -->
+    <ImageView
+        android:id="@+id/playlistCoverImage"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:src="@drawable/ic_album_placeholder"
+        android:contentDescription="Обложка плейлиста" />
+
+    <!-- Название -->
+    <TextView
+        android:id="@+id/playlistNameText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Статистика слева, добавление/сортировка/порядок справа -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/playlistStatsText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0 треков • 0:00"
+            android:textColor="@android:color/white"
+            android:alpha="0.8" />
+
+        <!-- Кнопка добавить трек (слева от сортировки) -->
+        <ImageButton
+            android:id="@+id/btnAddTrack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_playlist_add"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Добавить трек"
+            android:tint="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Кнопка сортировки -->
+        <ImageButton
+            android:id="@+id/btnSortPlaylist"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_sort"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Кнопка изменения порядка (перетаскивание) -->
+        <ImageButton
+            android:id="@+id/btnReorder"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_reorder"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Изменить порядок"
+            android:tint="@android:color/white" />
+    </LinearLayout>
+
+    <!-- Ряд воспроизведения -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/btnPlayPlaylist"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_play"
+            android:background="@drawable/rounded_rect_accent_background"
+            android:contentDescription="Воспроизвести плейлист"
+            android:scaleType="centerInside"
+            android:layout_marginEnd="8dp" />
+
+        <ImageButton
+            android:id="@+id/btnShufflePlaylist"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:src="@drawable/ic_shuffle"
+            android:background="@drawable/rounded_rect_accent_background"
+            android:contentDescription="Перемешать и воспроизвести"
+            android:scaleType="centerInside" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView

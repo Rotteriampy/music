@@ -25,6 +25,8 @@ import android.net.Uri
 import android.view.View
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
+import androidx.recyclerview.widget.ItemTouchHelper
+import android.widget.RadioGroup
 
 class GenreActivity : AppCompatActivity() {
 
@@ -43,6 +45,14 @@ class GenreActivity : AppCompatActivity() {
     private var customGenreCover: Uri? = null
     private var customGenreName: String? = null
     private var editDialogCoverView: ImageView? = null
+    private lateinit var genreCoverImage: ImageView
+    private lateinit var genreStatsText: TextView
+    private lateinit var btnSortGenre: ImageButton
+    private lateinit var btnReorderTracks: ImageButton
+    private var isReorderMode = false
+    private var itemTouchHelper: ItemTouchHelper? = null
+    private var sortType: Int = 0
+    private var sortAscending: Boolean = false
 
     private val genreCoverLauncher = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let {
@@ -73,6 +83,10 @@ class GenreActivity : AppCompatActivity() {
         btnShuffleGenre = findViewById(R.id.btnShuffleGenre)
         btnGenreMore = findViewById(R.id.btnGenreMore)
         btnGenreMore.setOnClickListener { showGenreMoreMenu(it) }
+        genreCoverImage = findViewById(R.id.genreCoverImage)
+        genreStatsText = findViewById(R.id.genreStatsText)
+        btnSortGenre = findViewById(R.id.btnSortGenre)
+        btnReorderTracks = findViewById(R.id.btnReorderTracks)
 
         genreTracksList.layoutManager = LinearLayoutManager(this)
 
@@ -86,6 +100,9 @@ class GenreActivity : AppCompatActivity() {
             loadGenreTracks()
             trackAdapter = TrackAdapter(genreTracks, isFromPlaylist = false)
             genreTracksList.adapter = trackAdapter
+            updateStats()
+            loadGenreCover()
+            setupReorder()
         } else {
             finish()
         }
@@ -96,6 +113,8 @@ class GenreActivity : AppCompatActivity() {
         btnBack.setOnClickListener { finish() }
         btnPlayGenre.setOnClickListener { playGenre() }
         btnShuffleGenre.setOnClickListener { shuffleAndPlayGenre() }
+        btnSortGenre.setOnClickListener { showSortMenu(it) }
+        btnReorderTracks.setOnClickListener { toggleReorderMode() }
     }
 
     private fun loadGenreTracks() {
@@ -246,6 +265,10 @@ class GenreActivity : AppCompatActivity() {
                     showEditGenreDialog()
                     true
                 }
+                R.id.menu_search -> {
+                    showTrackSearchDialog()
+                    true
+                }
                 else -> false
             }
         }
@@ -324,5 +347,179 @@ class GenreActivity : AppCompatActivity() {
 
     private fun updateGenreUI() {
         genreNameText.text = customGenreName ?: genreName
+    }
+
+    private fun showSortMenu(view: View) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_sort, null)
+
+        val sortTypeGroup = dialogView.findViewById<RadioGroup>(R.id.sortTypeGroup)
+        val btnSortAsc = dialogView.findViewById<ImageButton>(R.id.btnSortAsc)
+        val btnSortDesc = dialogView.findViewById<ImageButton>(R.id.btnSortDesc)
+        val sortDirectionText = dialogView.findViewById<TextView>(R.id.sortDirectionText)
+        val btnApplySort = dialogView.findViewById<Button>(R.id.btnApplySort)
+        val btnCancelSort = dialogView.findViewById<Button>(R.id.btnCancelSort)
+
+        when (sortType) {
+            0 -> sortTypeGroup.check(R.id.sortByDate)
+            1 -> sortTypeGroup.check(R.id.sortByName)
+            2 -> sortTypeGroup.check(R.id.sortByArtist)
+            3 -> sortTypeGroup.check(R.id.sortByDuration)
+        }
+
+        sortDirectionText.text = if (sortAscending) "↑" else "↓"
+
+        btnSortAsc.setOnClickListener {
+            sortAscending = true
+            sortDirectionText.text = "↑"
+        }
+
+        btnSortDesc.setOnClickListener {
+            sortAscending = false
+            sortDirectionText.text = "↓"
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        btnApplySort.setOnClickListener {
+            sortType = when (sortTypeGroup.checkedRadioButtonId) {
+                R.id.sortByDate -> 0
+                R.id.sortByName -> 1
+                R.id.sortByArtist -> 2
+                R.id.sortByDuration -> 3
+                else -> 0
+            }
+            applyGenreSort()
+            dialog.dismiss()
+        }
+
+        btnCancelSort.setOnClickListener { dialog.dismiss() }
+
+        val titleView = dialog.findViewById<TextView>(android.R.id.title)
+        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+
+        dialog.show()
+    }
+
+    private fun applyGenreSort() {
+        when (sortType) {
+            0 -> if (sortAscending) genreTracks.sortBy { it.dateModified } else genreTracks.sortByDescending { it.dateModified }
+            1 -> if (sortAscending) genreTracks.sortBy { it.name.lowercase() } else genreTracks.sortByDescending { it.name.lowercase() }
+            2 -> if (sortAscending) genreTracks.sortBy { (it.artist ?: "").lowercase() } else genreTracks.sortByDescending { (it.artist ?: "").lowercase() }
+            3 -> if (sortAscending) genreTracks.sortBy { it.duration ?: 0L } else genreTracks.sortByDescending { it.duration ?: 0L }
+        }
+        trackAdapter.notifyDataSetChanged()
+        updateStats()
+    }
+
+    private fun showSortOrderDialog(applySort: (Boolean) -> Unit) {
+        val options = arrayOf("По возрастанию", "По убыванию")
+        AlertDialog.Builder(this)
+            .setTitle("Порядок сортировки")
+            .setItems(options) { _, which ->
+                val ascending = (which == 0)
+                applySort(ascending)
+                trackAdapter.notifyDataSetChanged()
+                updateStats()
+            }
+            .show()
+    }
+
+    private fun updateStats() {
+        val count = genreTracks.size
+        val totalDuration = genreTracks.sumOf { it.duration ?: 0L }
+        val hours = totalDuration / 3600000
+        val minutes = (totalDuration % 3600000) / 60000
+        val seconds = (totalDuration / 1000) % 60
+        val durationText = if (hours > 0) "$hours:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}" else "$minutes:${seconds.toString().padStart(2,'0')}"
+        genreStatsText.text = "$count треков • $durationText"
+    }
+
+    private fun setupReorder() {
+        val callback = object : ItemTouchHelper.SimpleCallback(
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
+        ) {
+            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                val from = viewHolder.adapterPosition
+                val to = target.adapterPosition
+                if (from in genreTracks.indices && to in genreTracks.indices) {
+                    val item = genreTracks.removeAt(from)
+                    genreTracks.add(to, item)
+                    trackAdapter.notifyItemMoved(from, to)
+                    return true
+                }
+                return false
+            }
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) { }
+            override fun isLongPressDragEnabled(): Boolean = isReorderMode
+        }
+        itemTouchHelper = ItemTouchHelper(callback)
+        itemTouchHelper?.attachToRecyclerView(genreTracksList)
+    }
+
+    private fun toggleReorderMode() {
+        isReorderMode = !isReorderMode
+        trackAdapter.isReorderMode = isReorderMode
+        if (isReorderMode) {
+            btnReorderTracks.setColorFilter(ContextCompat.getColor(this, R.color.accent_color))
+        } else {
+            btnReorderTracks.clearColorFilter()
+        }
+    }
+
+    private fun showTrackSearchDialog() {
+        val input = EditText(this)
+        input.hint = "Поиск треков..."
+        AlertDialog.Builder(this)
+            .setTitle("Поиск")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val q = input.text.toString().trim()
+                if (q.isEmpty()) {
+                    loadGenreTracks()
+                    trackAdapter.updateTracks(genreTracks)
+                } else {
+                    val filtered = genreTracks.filter { it.name.contains(q, true) || (it.artist?.contains(q, true) == true) }
+                    trackAdapter.updateTracks(filtered.toMutableList())
+                }
+                updateStats()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun loadGenreCover() {
+        // Для Unknown всегда плейсхолдер
+        if (genreName?.equals("Unknown", ignoreCase = true) == true) {
+            genreCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+            return
+        }
+
+        // Сначала используем кастомную обложку, если задана (чтобы совпадало со списком)
+        customGenreCover?.let {
+            genreCoverImage.setImageURI(it)
+            return
+        }
+
+        val firstTrack = genreTracks.firstOrNull()
+        if (firstTrack?.path != null) {
+            try {
+                val retriever = android.media.MediaMetadataRetriever()
+                retriever.setDataSource(firstTrack.path)
+                val artBytes = retriever.embeddedPicture
+                if (artBytes != null) {
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                    genreCoverImage.setImageBitmap(bitmap)
+                } else {
+                    genreCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+                }
+                retriever.release()
+            } catch (e: Exception) {
+                genreCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+            }
+        } else {
+            genreCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+        }
     }
 }

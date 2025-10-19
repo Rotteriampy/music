@@ -17,15 +17,20 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import java.io.File
 import android.provider.MediaStore
 import android.os.Build
+import android.widget.Button
+import android.widget.RadioGroup
 
 class PlaylistActivity : AppCompatActivity() {
 
     private lateinit var playlistTracksList: RecyclerView
     private lateinit var playlistNameText: TextView
+    private lateinit var playlistStatsText: TextView
+    private lateinit var playlistCoverImage: android.widget.ImageView
     private lateinit var btnDeletePlaylist: ImageButton
     private lateinit var btnAddTrack: ImageButton
     private lateinit var btnBack: ImageButton
     private lateinit var btnReorder: ImageButton
+    private lateinit var btnSortPlaylist: ImageButton
     private lateinit var btnPlayPlaylist: ImageButton
     private lateinit var btnShufflePlaylist: ImageButton
     private lateinit var playlistRootLayout: LinearLayout
@@ -35,6 +40,8 @@ class PlaylistActivity : AppCompatActivity() {
     private lateinit var trackAdapter: TrackAdapter
     private var itemTouchHelper: ItemTouchHelper? = null
     private var isReorderMode = false
+    private var sortType: Int = 0
+    private var sortAscending: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,11 +49,14 @@ class PlaylistActivity : AppCompatActivity() {
 
         playlistRootLayout = findViewById(R.id.playlistRootLayout)
         playlistNameText = findViewById(R.id.playlistNameText)
+        playlistStatsText = findViewById(R.id.playlistStatsText)
+        playlistCoverImage = findViewById(R.id.playlistCoverImage)
         playlistTracksList = findViewById(R.id.playlistTracksList)
         btnDeletePlaylist = findViewById(R.id.btnDeletePlaylist)
         btnAddTrack = findViewById(R.id.btnAddTrack)
         btnBack = findViewById(R.id.btnBack)
         btnReorder = findViewById(R.id.btnReorder)
+        btnSortPlaylist = findViewById(R.id.btnSortPlaylist)
         btnPlayPlaylist = findViewById(R.id.btnPlayPlaylist)
         btnShufflePlaylist = findViewById(R.id.btnShufflePlaylist)
 
@@ -64,6 +74,8 @@ class PlaylistActivity : AppCompatActivity() {
         val currentPlaylist = playlist
         if (currentPlaylist != null) {
             playlistNameText.text = currentPlaylist.name
+            updatePlaylistStats(currentPlaylist)
+            loadPlaylistCover(currentPlaylist)
             trackAdapter = TrackAdapter(currentPlaylist.tracks.toMutableList(), isFromPlaylist = true)
             playlistTracksList.adapter = trackAdapter
 
@@ -92,6 +104,7 @@ class PlaylistActivity : AppCompatActivity() {
         btnAddTrack.setOnClickListener { onAddTrackClick() }
         btnBack.setOnClickListener { onBackClick() }
         btnReorder.setOnClickListener { toggleReorderMode() }
+        btnSortPlaylist.setOnClickListener { showSortMenu(it) }
         btnPlayPlaylist.setOnClickListener { playPlaylist() }
         btnShufflePlaylist.setOnClickListener { shuffleAndPlayPlaylist() }
     }
@@ -219,6 +232,8 @@ class PlaylistActivity : AppCompatActivity() {
             val currentPlaylist = playlist
             if (currentPlaylist != null && ::trackAdapter.isInitialized) {
                 trackAdapter.updateTracks(currentPlaylist.tracks.toMutableList())
+                updatePlaylistStats(currentPlaylist)
+                loadPlaylistCover(currentPlaylist)
             }
         }
     }
@@ -386,5 +401,104 @@ class PlaylistActivity : AppCompatActivity() {
 
     private fun onBackClick() {
         finish()
+    }
+
+    private fun showSortMenu(view: android.view.View) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_sort, null)
+
+        val sortTypeGroup = dialogView.findViewById<RadioGroup>(R.id.sortTypeGroup)
+        val btnSortAsc = dialogView.findViewById<ImageButton>(R.id.btnSortAsc)
+        val btnSortDesc = dialogView.findViewById<ImageButton>(R.id.btnSortDesc)
+        val sortDirectionText = dialogView.findViewById<TextView>(R.id.sortDirectionText)
+        val btnApplySort = dialogView.findViewById<Button>(R.id.btnApplySort)
+        val btnCancelSort = dialogView.findViewById<Button>(R.id.btnCancelSort)
+
+        when (sortType) {
+            0 -> sortTypeGroup.check(R.id.sortByDate)
+            1 -> sortTypeGroup.check(R.id.sortByName)
+            2 -> sortTypeGroup.check(R.id.sortByArtist)
+            3 -> sortTypeGroup.check(R.id.sortByDuration)
+        }
+
+        sortDirectionText.text = if (sortAscending) "↑" else "↓"
+
+        btnSortAsc.setOnClickListener {
+            sortAscending = true
+            sortDirectionText.text = "↑"
+        }
+
+        btnSortDesc.setOnClickListener {
+            sortAscending = false
+            sortDirectionText.text = "↓"
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        btnApplySort.setOnClickListener {
+            sortType = when (sortTypeGroup.checkedRadioButtonId) {
+                R.id.sortByDate -> 0
+                R.id.sortByName -> 1
+                R.id.sortByArtist -> 2
+                R.id.sortByDuration -> 3
+                else -> 0
+            }
+            applyPlaylistSort()
+            dialog.dismiss()
+        }
+
+        btnCancelSort.setOnClickListener { dialog.dismiss() }
+
+        dialog.show()
+    }
+
+    private fun applyPlaylistSort() {
+        val list = trackAdapter.getTracks()
+        when (sortType) {
+            0 -> if (sortAscending) list.sortBy { it.dateModified } else list.sortByDescending { it.dateModified }
+            1 -> if (sortAscending) list.sortBy { it.name.lowercase() } else list.sortByDescending { it.name.lowercase() }
+            2 -> if (sortAscending) list.sortBy { (it.artist ?: "").lowercase() } else list.sortByDescending { (it.artist ?: "").lowercase() }
+            3 -> if (sortAscending) list.sortBy { it.duration ?: 0L } else list.sortByDescending { it.duration ?: 0L }
+        }
+        trackAdapter.notifyDataSetChanged()
+        playlist?.let { updatePlaylistStats(it) }
+    }
+
+    private fun updatePlaylistStats(pl: Playlist) {
+        val count = pl.tracks.size
+        val total = pl.tracks.sumOf { it.duration ?: 0L }
+        val hours = total / 3600000
+        val minutes = (total % 3600000) / 60000
+        val durationText = if (hours > 0) "$hours ч $minutes мин" else "$minutes мин"
+        val tracksText = when {
+            count % 10 == 1 && count % 100 != 11 -> "$count трек"
+            count % 10 in 2..4 && count % 100 !in 12..14 -> "$count трека"
+            else -> "$count треков"
+        }
+        playlistStatsText.text = "$tracksText • $durationText"
+    }
+
+    private fun loadPlaylistCover(pl: Playlist) {
+        val uriStr = pl.coverUri
+        if (uriStr.isNullOrBlank()) {
+            playlistCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+            return
+        }
+        try {
+            val uri = android.net.Uri.parse(uriStr)
+            contentResolver.openInputStream(uri)?.use { input ->
+                val bmp = android.graphics.BitmapFactory.decodeStream(input)
+                if (bmp != null) {
+                    playlistCoverImage.setImageBitmap(bmp)
+                } else {
+                    playlistCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+                }
+            } ?: run {
+                playlistCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+            }
+        } catch (_: Exception) {
+            playlistCoverImage.setImageResource(R.drawable.ic_album_placeholder)
+        }
     }
 }
