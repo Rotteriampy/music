@@ -15,6 +15,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import android.os.Build
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.PopupMenu
+import android.widget.EditText
+import android.widget.Button
+import android.net.Uri
+import android.view.View
+import android.widget.ImageView
+import androidx.appcompat.app.AlertDialog
 
 class ArtistActivity : AppCompatActivity() {
 
@@ -29,6 +38,28 @@ class ArtistActivity : AppCompatActivity() {
     private lateinit var trackAdapter: TrackAdapter
     private val artistTracks = mutableListOf<Track>()
 
+    private lateinit var btnArtistMore: ImageButton
+    private var customArtistCover: Uri? = null
+    private var customArtistName: String? = null
+    private var editDialogCoverView: ImageView? = null
+
+    private val artistCoverLauncher = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let {
+            val intent = Intent(this, CropImageActivity::class.java)
+            intent.putExtra("imageUri", it)
+            artistCropLauncher.launch(intent)
+        }
+    }
+
+    private val artistCropLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            result.data?.data?.let { uri ->
+                customArtistCover = uri
+                editDialogCoverView?.setImageURI(uri)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_artist)
@@ -39,12 +70,16 @@ class ArtistActivity : AppCompatActivity() {
         btnBack = findViewById(R.id.btnBackArtist)
         btnPlayArtist = findViewById(R.id.btnPlayArtist)
         btnShuffleArtist = findViewById(R.id.btnShuffleArtist)
+        btnArtistMore = findViewById(R.id.btnArtistMore)
+        btnArtistMore.setOnClickListener { showArtistMoreMenu(it) }
 
         artistTracksList.layoutManager = LinearLayoutManager(this)
 
         artistName = intent.getStringExtra("ARTIST_NAME")
 
         restoreColor()
+        loadCustomArtistData()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
         }
@@ -186,7 +221,95 @@ class ArtistActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Обновляем адаптер при возврате на экран
         trackAdapter.notifyDataSetChanged()
+    }
+
+    private fun showArtistMoreMenu(view: View) {
+        val popup = PopupMenu(this, view)
+        popup.menuInflater.inflate(R.menu.artist_more_menu, popup.menu)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.menu_edit_artist -> {
+                    showEditArtistDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun showEditArtistDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_artist, null)
+        val coverImageView = dialogView.findViewById<ImageView>(R.id.editArtistCover)
+        val nameEditText = dialogView.findViewById<EditText>(R.id.editArtistName)
+        val selectCoverButton = dialogView.findViewById<Button>(R.id.btnSelectArtistCover)
+
+        editDialogCoverView = coverImageView
+
+        nameEditText.setText(customArtistName ?: artistName)
+
+        if (customArtistCover != null) {
+            coverImageView.setImageURI(customArtistCover)
+        } else {
+            coverImageView.setImageResource(R.drawable.ic_album_placeholder)
+        }
+
+        selectCoverButton.setOnClickListener {
+            artistCoverLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Редактировать исполнителя")
+            .setView(dialogView)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val newName = nameEditText.text.toString().trim()
+                if (newName.isNotEmpty()) {
+                    customArtistName = newName
+                    saveCustomArtistData()
+                    updateArtistUI()
+                }
+                editDialogCoverView = null
+            }
+            .setNegativeButton("Отмена") { _, _ ->
+                editDialogCoverView = null
+            }
+            .create()
+
+        dialog.show()
+
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(
+            ContextCompat.getColor(this, android.R.color.black)
+        ))
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(
+            ContextCompat.getColor(this, android.R.color.white)
+        )
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(
+            ContextCompat.getColor(this, android.R.color.white)
+        )
+
+        val titleView = dialog.findViewById<TextView>(android.R.id.title)
+        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+    }
+
+    private fun saveCustomArtistData() {
+        val prefs = getSharedPreferences("custom_artists", MODE_PRIVATE)
+        val editor = prefs.edit()
+        editor.putString("artist_${artistName}_name", customArtistName)
+        editor.putString("artist_${artistName}_cover", customArtistCover?.toString())
+        editor.apply()
+    }
+
+    private fun loadCustomArtistData() {
+        val prefs = getSharedPreferences("custom_artists", MODE_PRIVATE)
+        customArtistName = prefs.getString("artist_${artistName}_name", null)
+        val coverUri = prefs.getString("artist_${artistName}_cover", null)
+        customArtistCover = if (coverUri != null) Uri.parse(coverUri) else null
+        updateArtistUI()
+    }
+
+    private fun updateArtistUI() {
+        artistNameText.text = customArtistName ?: artistName
     }
 }

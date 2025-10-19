@@ -249,6 +249,7 @@ class MusicService : Service() {
     fun resumeMusic() {
         mediaPlayer?.start()
         isPlaying = true
+        startPositionUpdates() // Добавьте этот вызов
         updatePlaybackState()
         showNotification()
         sendBroadcast(Intent("com.example.music.PLAYBACK_STATE_CHANGED"))

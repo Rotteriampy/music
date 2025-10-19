@@ -1,134 +1,160 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@android:color/black"
-    android:padding="16dp">
+    android:fillViewport="true">
 
-    <!-- Верхняя панель -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="24dp">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <ImageButton
-            android:id="@+id/btnBackEdit"
-            android:layout_width="40dp"
+        <!-- Верхняя панель -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <ImageButton
+                android:id="@+id/btnBackEdit"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_back_triangle"
+                android:background="@null"
+                android:contentDescription="Назад"
+                android:tint="@android:color/white"
+                android:layout_marginEnd="16dp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Редактировать теги"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Обложка -->
+        <ImageView
+            android:id="@+id/coverImageView"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="12dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_album_placeholder" />
+
+        <Button
+            android:id="@+id/btnSelectCover"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="20dp"
+            android:backgroundTint="@color/accent_color"
+            android:text="Выбрать обложку"
+            android:textColor="@android:color/white" />
+
+        <!-- Поля редактирования -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Название"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/editTrackName"
+            android:layout_width="match_parent"
             android:layout_height="40dp"
-            android:src="@drawable/ic_back_triangle"
-            android:background="@null"
-            android:contentDescription="Назад"
-            android:tint="@android:color/white"
-            android:layout_marginEnd="16dp" />
+            android:background="@android:color/white"
+            android:textColor="@android:color/black"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:hint="Название трека"
+            android:textColorHint="#888888"
+            android:layout_marginBottom="12dp"
+            android:singleLine="true" />
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Редактировать теги"
+            android:text="Исполнитель"
             android:textColor="@android:color/white"
-            android:textSize="20sp"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/editTrackArtist"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@android:color/white"
+            android:textColor="@android:color/black"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:hint="Исполнитель"
+            android:textColorHint="#888888"
+            android:layout_marginBottom="12dp"
+            android:singleLine="true" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Альбом"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/editTrackAlbum"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@android:color/white"
+            android:textColor="@android:color/black"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:hint="Альбом"
+            android:textColorHint="#888888"
+            android:layout_marginBottom="12dp"
+            android:singleLine="true" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Жанр"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="6dp" />
+
+        <EditText
+            android:id="@+id/editTrackGenre"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@android:color/white"
+            android:textColor="@android:color/black"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:hint="Жанр"
+            android:textColorHint="#888888"
+            android:layout_marginBottom="20dp"
+            android:singleLine="true" />
+
+        <!-- Кнопка сохранения -->
+        <Button
+            android:id="@+id/btnSaveTags"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Сохранить"
+            android:textColor="@android:color/white"
+            android:backgroundTint="@color/accent_color"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
     </LinearLayout>
-
-    <!-- Поля редактирования -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Название"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/editTrackName"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="@android:color/white"
-        android:textColor="@android:color/black"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:hint="Название трека"
-        android:textColorHint="#888888"
-        android:layout_marginBottom="16dp"
-        android:singleLine="true" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Исполнитель"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/editTrackArtist"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="@android:color/white"
-        android:textColor="@android:color/black"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:hint="Исполнитель"
-        android:textColorHint="#888888"
-        android:layout_marginBottom="16dp"
-        android:singleLine="true" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Альбом"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/editTrackAlbum"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="@android:color/white"
-        android:textColor="@android:color/black"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:hint="Альбом"
-        android:textColorHint="#888888"
-        android:layout_marginBottom="16dp"
-        android:singleLine="true" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Жанр"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
-
-    <EditText
-        android:id="@+id/editTrackGenre"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:background="@android:color/white"
-        android:textColor="@android:color/black"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:hint="Жанр"
-        android:textColorHint="#888888"
-        android:layout_marginBottom="24dp"
-        android:singleLine="true" />
-
-    <!-- Кнопка сохранения -->
-    <Button
-        android:id="@+id/btnSaveTags"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="Сохранить"
-        android:textColor="@android:color/white"
-        android:backgroundTint="@color/accent_color"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-</LinearLayout>
+</ScrollView>

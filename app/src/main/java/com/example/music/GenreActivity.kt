@@ -16,6 +16,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 import android.os.Build
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.PopupMenu
+import android.widget.EditText
+import android.widget.Button
+import android.net.Uri
+import android.view.View
+import android.widget.ImageView
+import androidx.appcompat.app.AlertDialog
 
 class GenreActivity : AppCompatActivity() {
 
@@ -30,6 +39,28 @@ class GenreActivity : AppCompatActivity() {
     private lateinit var trackAdapter: TrackAdapter
     private val genreTracks = mutableListOf<Track>()
 
+    private lateinit var btnGenreMore: ImageButton
+    private var customGenreCover: Uri? = null
+    private var customGenreName: String? = null
+    private var editDialogCoverView: ImageView? = null
+
+    private val genreCoverLauncher = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let {
+            val intent = Intent(this, CropImageActivity::class.java)
+            intent.putExtra("imageUri", it)
+            genreCropLauncher.launch(intent)
+        }
+    }
+
+    private val genreCropLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            result.data?.data?.let { uri ->
+                customGenreCover = uri
+                editDialogCoverView?.setImageURI(uri)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_genre)
@@ -40,12 +71,15 @@ class GenreActivity : AppCompatActivity() {
         btnBack = findViewById(R.id.btnBackGenre)
         btnPlayGenre = findViewById(R.id.btnPlayGenre)
         btnShuffleGenre = findViewById(R.id.btnShuffleGenre)
+        btnGenreMore = findViewById(R.id.btnGenreMore)
+        btnGenreMore.setOnClickListener { showGenreMoreMenu(it) }
 
         genreTracksList.layoutManager = LinearLayoutManager(this)
 
         genreName = intent.getStringExtra("GENRE_NAME")
 
         restoreColor()
+        loadCustomGenreData()
 
         if (genreName != null) {
             genreNameText.text = genreName
@@ -200,7 +234,95 @@ class GenreActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Обновляем адаптер при возврате на экран
         trackAdapter.notifyDataSetChanged()
+    }
+
+    private fun showGenreMoreMenu(view: View) {
+        val popup = PopupMenu(this, view)
+        popup.menuInflater.inflate(R.menu.genre_more_menu, popup.menu)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.menu_edit_genre -> {
+                    showEditGenreDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun showEditGenreDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_edit_genre, null)
+        val coverImageView = dialogView.findViewById<ImageView>(R.id.editGenreCover)
+        val nameEditText = dialogView.findViewById<EditText>(R.id.editGenreName)
+        val selectCoverButton = dialogView.findViewById<Button>(R.id.btnSelectGenreCover)
+
+        editDialogCoverView = coverImageView
+
+        nameEditText.setText(customGenreName ?: genreName)
+
+        if (customGenreCover != null) {
+            coverImageView.setImageURI(customGenreCover)
+        } else {
+            coverImageView.setImageResource(R.drawable.ic_album_placeholder)
+        }
+
+        selectCoverButton.setOnClickListener {
+            genreCoverLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Редактировать жанр")
+            .setView(dialogView)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val newName = nameEditText.text.toString().trim()
+                if (newName.isNotEmpty()) {
+                    customGenreName = newName
+                    saveCustomGenreData()
+                    updateGenreUI()
+                }
+                editDialogCoverView = null
+            }
+            .setNegativeButton("Отмена") { _, _ ->
+                editDialogCoverView = null
+            }
+            .create()
+
+        dialog.show()
+
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(
+            ContextCompat.getColor(this, android.R.color.black)
+        ))
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(
+            ContextCompat.getColor(this, android.R.color.white)
+        )
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(
+            ContextCompat.getColor(this, android.R.color.white)
+        )
+
+        val titleView = dialog.findViewById<TextView>(android.R.id.title)
+        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+    }
+
+    private fun saveCustomGenreData() {
+        val prefs = getSharedPreferences("custom_genres", MODE_PRIVATE)
+        val editor = prefs.edit()
+        editor.putString("genre_${genreName}_name", customGenreName)
+        editor.putString("genre_${genreName}_cover", customGenreCover?.toString())
+        editor.apply()
+    }
+
+    private fun loadCustomGenreData() {
+        val prefs = getSharedPreferences("custom_genres", MODE_PRIVATE)
+        customGenreName = prefs.getString("genre_${genreName}_name", null)
+        val coverUri = prefs.getString("genre_${genreName}_cover", null)
+        customGenreCover = if (coverUri != null) Uri.parse(coverUri) else null
+        updateGenreUI()
+    }
+
+    private fun updateGenreUI() {
+        genreNameText.text = customGenreName ?: genreName
     }
 }

@@ -3,28 +3,19 @@ package com.example.music
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.content.ContentUris
-import android.provider.MediaStore
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.InputStream
 
 class AlbumAdapter(
     private var albums: List<Album>,
     private val context: Context
 ) : RecyclerView.Adapter<AlbumAdapter.AlbumViewHolder>() {
-
-    companion object {
-        private val bitmapCache: MutableMap<Long, android.graphics.Bitmap?> = mutableMapOf()
-    }
 
     class AlbumViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val albumCover: ImageView = itemView.findViewById(R.id.playlistCover)
@@ -39,7 +30,27 @@ class AlbumAdapter(
 
     override fun onBindViewHolder(holder: AlbumViewHolder, position: Int) {
         val album = albums[position]
-        holder.albumName.text = album.name
+
+        // Загружаем кастомные данные
+        val prefs = context.getSharedPreferences("custom_albums", Context.MODE_PRIVATE)
+        val customName = prefs.getString("album_${album.name}_name", null)
+        val customCoverUri = prefs.getString("album_${album.name}_cover", null)
+
+        // Показываем название (кастомное или оригинальное)
+        holder.albumName.text = customName ?: album.name
+
+        // Загружаем обложку
+        if (customCoverUri != null) {
+            holder.albumCover.setImageURI(Uri.parse(customCoverUri))
+        } else {
+            // Загружаем обложку из первого трека
+            val firstTrack = album.tracks.firstOrNull()
+            if (firstTrack?.path != null) {
+                loadAlbumCover(firstTrack.path, holder.albumCover)
+            } else {
+                holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
+            }
+        }
 
         holder.itemView.setOnClickListener {
             val intent = Intent(context, AlbumActivity::class.java).apply {
@@ -48,41 +59,29 @@ class AlbumAdapter(
             context.startActivity(intent)
         }
 
-        // Загрузка обложки альбома
-        val firstTrack = album.tracks.firstOrNull()
-        firstTrack?.albumId?.let { albumId ->
-            val cachedBitmap = bitmapCache[albumId]
-            if (cachedBitmap != null) {
-                holder.albumCover.setImageBitmap(cachedBitmap)
-            } else {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val uri = ContentUris.withAppendedId(
-                            MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
-                            albumId
-                        )
-                        val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                        val bitmap = BitmapFactory.decodeStream(inputStream)
-                        withContext(Dispatchers.Main) {
-                            holder.albumCover.setImageBitmap(bitmap)
-                            bitmapCache[albumId] = bitmap
-                        }
-                        inputStream?.close()
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            holder.albumCover.setImageResource(android.R.drawable.ic_menu_gallery)
-                        }
-                    }
-                }
-            }
-        } ?: holder.albumCover.setImageResource(android.R.drawable.ic_menu_gallery)
-
         // Информация о треках
         val trackCount = album.tracks.size
         val totalDurationMs = album.tracks.mapNotNull { it.duration }.filter { it > 0 }.sum()
         val totalMinutes = totalDurationMs / 1000 / 60
         val totalSeconds = (totalDurationMs / 1000) % 60
         holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
+    }
+
+    private fun loadAlbumCover(trackPath: String, imageView: ImageView) {
+        try {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(trackPath)
+            val artBytes = retriever.embeddedPicture
+            if (artBytes != null) {
+                val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                imageView.setImageBitmap(bitmap)
+            } else {
+                imageView.setImageResource(R.drawable.ic_album_placeholder)
+            }
+            retriever.release()
+        } catch (e: Exception) {
+            imageView.setImageResource(R.drawable.ic_album_placeholder)
+        }
     }
 
     override fun getItemCount(): Int = albums.size

@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
     private val filteredTracks = mutableListOf<Track>()
     private var searchQuery: String = ""
     private var sortType: Int = 0
-    private var sortAscending: Boolean = true
+    private var sortAscending: Boolean = false
     private lateinit var miniPlayerProgressBar: ProgressBar
 
     private lateinit var playlistAdapter: PlaylistAdapter

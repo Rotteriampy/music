@@ -308,6 +308,19 @@ class PlaylistActivity : AppCompatActivity() {
             .create()
 
         dialog.show()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.black)
+
+        // Установка белого цвета для заголовка
+        val titleId = resources.getIdentifier("alertTitle", "id", "android")
+        val title = dialog.findViewById<TextView>(titleId)
+        title?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+
+        // Установка белого цвета для кнопок
+        val positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+        positiveButton?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+
+        val negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
+        negativeButton?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 
     private fun getAllTracks(): List<Track> {
