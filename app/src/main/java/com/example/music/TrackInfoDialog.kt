@@ -4,6 +4,7 @@ import android.app.Dialog
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.TextView
 import java.io.File
 import java.text.SimpleDateFormat
@@ -14,6 +15,17 @@ class TrackInfoDialog(context: Context, private val track: Track) : Dialog(conte
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.dialog_track_info)
+
+        // Убираем белые рамки и делаем фон прозрачным
+        window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Устанавливаем ширину 85% от экрана
+        val displayMetrics = context.resources.displayMetrics
+        val width = (displayMetrics.widthPixels * 0.85).toInt()
+        window?.setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT)
+
+        // Центрируем диалог
+        window?.setGravity(android.view.Gravity.CENTER)
 
         val file = File(track.path ?: "")
         val retriever = MediaMetadataRetriever()
@@ -34,9 +46,6 @@ class TrackInfoDialog(context: Context, private val track: Track) : Dialog(conte
             val bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
             findViewById<TextView>(R.id.tvInfoBitrate).text = "Битрейт: ${bitrate / 1000} kbps"
 
-            val sampleRate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 0
-            findViewById<TextView>(R.id.tvInfoSampleRate).text = "Частота дискретизации: ${sampleRate / 1000} kHz"
-
             val fileSize = file.length() / (1024 * 1024)
             findViewById<TextView>(R.id.tvInfoFileSize).text = "Размер: $fileSize МБ"
 
@@ -48,6 +57,10 @@ class TrackInfoDialog(context: Context, private val track: Track) : Dialog(conte
 
             val playCount = ListeningStats.getPlayCount(track.path ?: "")
             findViewById<TextView>(R.id.tvInfoPlayCount).text = "Прослушиваний: $playCount"
+
+            // В блоке try-catch добавьте:
+            val year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+            findViewById<TextView>(R.id.tvInfoYear).text = "Год: ${year ?: "Неизвестно"}"
 
             retriever.release()
         } catch (e: Exception) {

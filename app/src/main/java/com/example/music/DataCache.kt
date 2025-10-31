@@ -8,6 +8,7 @@ import java.io.File
 object DataCache {
     private const val CACHE_DIR = "app_cache"
     private const val TRACKS_CACHE = "tracks_cache.json"
+    private const val PLAYLISTS_CACHE = "playlists_cache.json"
     private const val GENRES_CACHE = "genres_cache.json"
     private const val ARTISTS_CACHE = "artists_cache.json"
     private const val ALBUMS_CACHE = "albums_cache.json"
@@ -22,6 +23,16 @@ object DataCache {
     fun loadTracks(context: Context): List<Track>? {
         val type = object : TypeToken<List<Track>>() {}.type
         return loadFromFile(context, TRACKS_CACHE, type)
+    }
+
+    // Кэш плейлистов
+    fun savePlaylists(context: Context, playlists: List<Playlist>) {
+        saveToFile(context, PLAYLISTS_CACHE, playlists)
+    }
+
+    fun loadPlaylists(context: Context): List<Playlist>? {
+        val type = object : TypeToken<List<Playlist>>() {}.type
+        return loadFromFile(context, PLAYLISTS_CACHE, type)
     }
 
     // Кэш жанров

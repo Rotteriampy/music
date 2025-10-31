@@ -31,11 +31,11 @@ object ID3TagEditor {
         val retriever = android.media.MediaMetadataRetriever()
         retriever.setDataSource(filePath)
 
-        // Получаем текущие данные
-        val currentTitle = title ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
-        val currentArtist = artist ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
-        val currentAlbum = album ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
-        val currentGenre = genre ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE)
+        // Получаем текущие данные только если новые значения не указаны
+        val finalTitle = title ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE) ?: File(filePath).nameWithoutExtension
+        val finalArtist = artist ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: ""
+        val finalAlbum = album ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: ""
+        val finalGenre = genre ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE) ?: ""
 
         // Получаем обложку
         var coverBytes: ByteArray? = null
@@ -59,46 +59,139 @@ object ID3TagEditor {
             }
 
             // Редактируем временный файл
-            writeID3v2Tags(tempFile, currentTitle, currentArtist, currentAlbum, currentGenre, coverBytes)
+            writeID3v2Tags(tempFile, finalTitle, finalArtist, finalAlbum, finalGenre, coverBytes)
 
-            // Копируем временный файл обратно через MediaStore
-            val success = copyTempFileToOriginal(context, filePath, tempFile)
+            // Пробуем прямой доступ к файлу
+            val success = tryDirectFileAccess(filePath, tempFile, context)
+                ?: tryMediaStoreAccess(filePath, tempFile, context)
 
             tempFile.delete()
-
             return success
 
         } catch (e: Exception) {
             tempFile.delete()
             Log.e("ID3TagEditor", "Error updating tags", e)
-            throw e  // Пробрасываем исключение наверх!
+            throw e
         }
     }
+    private fun tryMediaStoreAccess(originalPath: String, tempFile: File, context: Context): Boolean {
+        return try {
+            Log.d("ID3TagEditor", "Using MediaStore access for: $originalPath")
 
-    private fun copyTempFileToOriginal(context: Context, originalPath: String, tempFile: File): Boolean {
-        val contentResolver = context.contentResolver
-        val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val selection = "${MediaStore.Audio.Media.DATA} = ?"
-        val selectionArgs = arrayOf(originalPath)
+            val contentResolver = context.contentResolver
+            val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            val selection = "${MediaStore.Audio.Media.DATA} = ?"
+            val selectionArgs = arrayOf(originalPath)
 
-        val cursor = contentResolver.query(uri, arrayOf(MediaStore.Audio.Media._ID), selection, selectionArgs, null)
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
-                val fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+            val cursor = contentResolver.query(uri, arrayOf(MediaStore.Audio.Media._ID), selection, selectionArgs, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                    val fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
-                // Пробрасываем SecurityException наверх для обработки
-                contentResolver.openOutputStream(fileUri, "wt")?.use { output ->
-                    FileInputStream(tempFile).use { input ->
+                    // Пробрасываем SecurityException наверх для обработки
+                    contentResolver.openOutputStream(fileUri, "wt")?.use { output ->
+                        FileInputStream(tempFile).use { input ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Log.d("ID3TagEditor", "MediaStore access successful")
+                    return true
+                }
+            }
+            Log.e("ID3TagEditor", "MediaStore access failed - file not found")
+            false
+        } catch (e: SecurityException) {
+            Log.e("ID3TagEditor", "MediaStore access blocked by SecurityException", e)
+            throw e // Пробрасываем SecurityException для обработки в Activity
+        } catch (e: Exception) {
+            Log.e("ID3TagEditor", "Error in MediaStore access", e)
+            false
+        }
+    }
+    private fun tryDirectFileAccess(originalPath: String, tempFile: File, context: Context): Boolean? {
+        return try {
+            Log.d("ID3TagEditor", "Attempting direct file access for: $originalPath")
+
+            val originalFile = File(originalPath)
+            if (originalFile.canWrite()) {
+                FileInputStream(tempFile).use { input ->
+                    FileOutputStream(originalFile).use { output ->
                         input.copyTo(output)
                     }
                 }
-                return true
+                Log.d("ID3TagEditor", "Direct file access successful")
+                true
+            } else {
+                Log.d("ID3TagEditor", "Direct file access not available - file not writable")
+                null
             }
+        } catch (e: SecurityException) {
+            Log.d("ID3TagEditor", "Direct file access blocked by SecurityException")
+            null
+        } catch (e: Exception) {
+            Log.e("ID3TagEditor", "Error in direct file access", e)
+            null
         }
-        return false
     }
+    // Добавим новый метод для массового обновления без прямого доступа
+    fun updateTagsWithoutDirectAccess(
+        filePath: String,
+        title: String?,
+        artist: String?,
+        album: String?,
+        genre: String?,
+        coverUri: Uri?,
+        context: Context
+    ): Boolean {
+        val originalFile = File(filePath)
+        if (!originalFile.exists()) return false
 
+        val retriever = android.media.MediaMetadataRetriever()
+        retriever.setDataSource(filePath)
+
+        // Получаем текущие данные только если новые значения не указаны
+        val finalTitle = title ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE) ?: File(filePath).nameWithoutExtension
+        val finalArtist = artist ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: ""
+        val finalAlbum = album ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: ""
+        val finalGenre = genre ?: retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_GENRE) ?: ""
+
+        // Получаем обложку
+        var coverBytes: ByteArray? = null
+        if (coverUri != null) {
+            coverBytes = getCoverBytesFromUri(context, coverUri)
+        } else {
+            coverBytes = retriever.embeddedPicture
+        }
+
+        retriever.release()
+
+        // Создаём временный файл
+        val tempFile = File(context.cacheDir, "temp_edit_${System.currentTimeMillis()}.mp3")
+
+        try {
+            // Копируем оригинал во временный файл
+            FileInputStream(originalFile).use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            // Редактируем временный файл
+            writeID3v2Tags(tempFile, finalTitle, finalArtist, finalAlbum, finalGenre, coverBytes)
+
+            // Используем тот же подход, что и для одиночного трека - копируем через MediaStore
+            val success = tryMediaStoreAccess(filePath, tempFile, context)
+
+            tempFile.delete()
+            return success
+
+        } catch (e: Exception) {
+            tempFile.delete()
+            Log.e("ID3TagEditor", "Error updating tags without direct access", e)
+            return false
+        }
+    }
     private fun getCoverBytesFromUri(context: Context, uri: Uri): ByteArray? {
         return try {
             val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, uri)

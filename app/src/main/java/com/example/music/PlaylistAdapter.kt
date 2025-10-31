@@ -5,7 +5,6 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -16,8 +15,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.util.Log
 import java.util.Collections
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 
 class PlaylistAdapter(
     private var playlists: MutableList<Playlist>,
@@ -82,7 +87,7 @@ class PlaylistAdapter(
                 val key = uriString
                 val cachedBitmap = bitmapCache[key]
                 if (cachedBitmap != null) {
-                    holder.playlistCover.setImageBitmap(cachedBitmap)
+                    holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, cachedBitmap, 12f))
                 } else {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
@@ -90,18 +95,57 @@ class PlaylistAdapter(
                             val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
                             val bitmap = BitmapFactory.decodeStream(inputStream)
                             withContext(Dispatchers.Main) {
-                                holder.playlistCover.setImageBitmap(bitmap)
-                                bitmapCache[key] = bitmap
+                                if (bitmap != null) {
+                                    holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, bitmap, 12f))
+                                    bitmapCache[key] = bitmap
+                                } else {
+                                    val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
+                                    if (ph != null) {
+                                        if (holder.playlistCover.width == 0 || holder.playlistCover.height == 0) {
+                                            holder.playlistCover.post {
+                                                holder.playlistCover.setImageBitmap(
+                                                    roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f)
+                                                )
+                                            }
+                                        } else {
+                                            holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f))
+                                        }
+                                    } else holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+                                }
                             }
                             inputStream?.close()
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+                                val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
+                                if (ph != null) {
+                                    if (holder.playlistCover.width == 0 || holder.playlistCover.height == 0) {
+                                        holder.playlistCover.post {
+                                            holder.playlistCover.setImageBitmap(
+                                                roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f)
+                                            )
+                                        }
+                                    } else {
+                                        holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f))
+                                    }
+                                } else holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
                             }
                         }
                     }
                 }
-            } ?: holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+            } ?: run {
+                val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
+                if (ph != null) {
+                    if (holder.playlistCover.width == 0 || holder.playlistCover.height == 0) {
+                        holder.playlistCover.post {
+                            holder.playlistCover.setImageBitmap(
+                                roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f)
+                            )
+                        }
+                    } else {
+                        holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f))
+                    }
+                } else holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+            }
         }
 
         // Tracks info
@@ -141,5 +185,47 @@ class PlaylistAdapter(
 
     fun getPlaylistAt(position: Int): Playlist {
         return playlists[position]
+    }
+
+    private fun roundToView(view: ImageView, src: Bitmap, radiusDp: Float): Bitmap {
+        val radiusPx = (radiusDp * view.resources.displayMetrics.density)
+        val outW = if (view.width > 0) view.width else (view.layoutParams?.width ?: 0).let { if (it > 0) it else view.resources.displayMetrics.widthPixels / 2 }
+        val outH = if (view.height > 0) view.height else (view.layoutParams?.height ?: 0).let { if (it > 0) it else outW }
+        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true }
+        val shader = BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val scale = maxOf(outW.toFloat() / src.width, outH.toFloat() / src.height)
+        val dx = (outW - src.width * scale) / 2f
+        val dy = (outH - src.height * scale) / 2f
+        val matrix = Matrix().apply { setScale(scale, scale); postTranslate(dx, dy) }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val rect = RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+        return out
+    }
+
+    private fun drawableToBitmap(drawable: android.graphics.drawable.Drawable): Bitmap {
+        if (drawable is android.graphics.drawable.BitmapDrawable && drawable.bitmap != null) {
+            return drawable.bitmap
+        }
+        val w = drawable.intrinsicWidth.takeIf { it > 0 } ?: 1
+        val h = drawable.intrinsicHeight.takeIf { it > 0 } ?: 1
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bmp
+    }
+
+    private fun drawableToSizedBitmapForView(view: ImageView, drawable: android.graphics.drawable.Drawable): Bitmap {
+        val targetW = (if (view.width > 0) view.width else (view.layoutParams?.width ?: 0)).let { sz -> if (sz > 0) sz else (view.resources.displayMetrics.widthPixels / 2) }
+        val targetH = (if (view.height > 0) view.height else (view.layoutParams?.height ?: 0)).let { sz -> if (sz > 0) sz else targetW }
+        val bmp = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bmp
     }
 }

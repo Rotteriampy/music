@@ -41,6 +41,7 @@ class MusicService : Service() {
         const val ACTION_PREVIOUS = "com.example.music.ACTION_PREVIOUS"
         const val ACTION_STOP = "com.example.music.ACTION_STOP"
         const val ACTION_CLOSE = "com.example.music.ACTION_CLOSE"
+        const val ACTION_SET_MODE = "com.example.music.ACTION_SET_MODE"
 
         var currentTrack: Track? = null
         var isPlaying = false
@@ -55,10 +56,14 @@ class MusicService : Service() {
     private var playbackMode = "NORMAL"
     private var hasCountedAsPlayed = false
     private var lastCheckedPosition = 0 // Добавьте эту строку
+    private var hasSeekedThisTrack = false
 
     private val playbackModeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             playbackMode = intent?.getStringExtra("playback_mode") ?: "NORMAL"
+            // Обновим уведомление и состояние — чтобы иконка режима поменялась мгновенно
+            updatePlaybackState()
+            showNotification()
         }
     }
 
@@ -72,6 +77,7 @@ class MusicService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        DiskImageCache.init(this)
         createNotificationChannel()
 
         // Загружаем режим воспроизведения
@@ -128,6 +134,46 @@ class MusicService : Service() {
             ACTION_PREVIOUS -> playPrevious()
             ACTION_STOP -> stopService()
             ACTION_CLOSE -> stopService()
+            ACTION_SET_MODE -> {
+                // Toggle mode if not explicitly provided, and mirror PlayerActivity logic
+                val previousMode = playbackMode
+                val requested = intent.getStringExtra("playback_mode")
+                playbackMode = when (requested ?: previousMode) {
+                    // If explicit target provided, use it; otherwise cycle
+                    null -> previousMode
+                    else -> requested ?: previousMode
+                }
+
+                if (requested == null) {
+                    playbackMode = when (previousMode) {
+                        "NORMAL" -> "REPEAT_ONE"
+                        "REPEAT_ONE" -> "SHUFFLE"
+                        "SHUFFLE" -> "STOP_AFTER"
+                        "STOP_AFTER" -> "NORMAL"
+                        else -> "NORMAL"
+                    }
+                }
+
+                // Apply side-effects for shuffle mode similar to PlayerActivity
+                if (previousMode == "SHUFFLE" && playbackMode != "SHUFFLE") {
+                    // leaving shuffle -> restore original order
+                    try { QueueManager.restoreOriginalQueue(this) } catch (_: Exception) {}
+                } else if (playbackMode == "SHUFFLE" && previousMode != "SHUFFLE") {
+                    try { QueueManager.shuffleQueue(this) } catch (_: Exception) {}
+                }
+
+                // persist for future runs
+                val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("playback_mode", playbackMode).apply()
+
+                // notify UI and refresh notification icon
+                Intent("com.example.music.PLAYBACK_MODE_CHANGED").apply {
+                    putExtra("playback_mode", playbackMode)
+                    setPackage(applicationContext.packageName)
+                }.also { sendBroadcast(it) }
+                updatePlaybackState()
+                showNotification()
+            }
             else -> {
                 val trackPath = intent?.getStringExtra("TRACK_PATH")
                 if (trackPath != null) {
@@ -145,8 +191,14 @@ class MusicService : Service() {
         }
         currentTrackPath = path
         currentTrack = QueueManager.getCurrentTrack()
+        // Если очередь пустая (например, запущено воспроизведение напрямую по TRACK_PATH),
+        // и у нас есть текущий трек — создадим минимальную очередь из одного элемента.
+        if ((QueueManager.getCurrentQueue().isEmpty()) && currentTrack != null) {
+            QueueManager.initializeQueueFromPosition(this, mutableListOf(currentTrack!!), 0)
+        }
         hasCountedAsPlayed = false
         lastCheckedPosition = 0 // Добавьте эту строку
+        hasSeekedThisTrack = false
 
         // Broadcast immediately so UI (lists/queue) updates highlighting without delay
         Intent("com.example.music.TRACK_CHANGED").apply {
@@ -166,9 +218,16 @@ class MusicService : Service() {
 
                     when (playbackMode) {
                         "REPEAT_ONE" -> {
-                            // Повторяем текущий трек
-                            seekTo(0)
+                            // Повторяем текущий трек и обновляем состояние
+                            // Внутренний возврат в начало без отметки пользовательской перемотки
+                            try { mediaPlayer?.seekTo(0) } catch (_: Exception) {}
                             start()
+                            MusicService.isPlaying = true
+                            updatePlaybackState()
+                            showNotification()
+                            Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+                                setPackage(applicationContext.packageName)
+                            }.also { sendBroadcast(it) }
                         }
                         "SHUFFLE" -> {
                             // Случайный трек из очереди
@@ -185,7 +244,27 @@ class MusicService : Service() {
                             }
                         }
                         "STOP_AFTER" -> {
-                            // Останавливаемся после текущего трека
+                            // Останавливаемся после текущего трека: останавливаем плеер, скрываем уведомление
+                            try { stop() } catch (_: Exception) {}
+                            MusicService.isPlaying = false
+                            updatePlaybackState()
+                            stopForeground(true)
+                            showNotification()
+
+                            // Сброс режима обратно в NORMAL (одноразовый STOP_AFTER)
+                            playbackMode = "NORMAL"
+                            val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+                            prefs.edit().putString("playback_mode", playbackMode).apply()
+
+                            // Уведомляем UI об изменении состояния и режима
+                            Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+                                setPackage(applicationContext.packageName)
+                            }.also { sendBroadcast(it) }
+                            Intent("com.example.music.PLAYBACK_MODE_CHANGED").apply {
+                                putExtra("playback_mode", playbackMode)
+                                setPackage(applicationContext.packageName)
+                            }.also { sendBroadcast(it) }
+
                             stopSelf()
                         }
                         "REPEAT_ALL" -> {
@@ -313,6 +392,7 @@ class MusicService : Service() {
 
         // При любой перемотке сбрасываем счетчик
         hasCountedAsPlayed = false
+        hasSeekedThisTrack = true
 
         // Устанавливаем позицию, НО помечаем как "после перемотки"
         lastCheckedPosition = -1 // Специальное значение = "только что перемотали"
@@ -376,6 +456,12 @@ class MusicService : Service() {
     private fun checkAndIncrementPlayCount() {
         if (hasCountedAsPlayed || currentTrackPath == null || !isPlaying) {
             Log.d("PLAY_COUNT", "Early return: counted=$hasCountedAsPlayed, path=$currentTrackPath, playing=$isPlaying")
+            return
+        }
+
+        // Если была хоть одна перемотка за время этого трека — не засчитываем прослушивание
+        if (hasSeekedThisTrack) {
+            Log.d("PLAY_COUNT", "Skip count due to seek during track")
             return
         }
 
@@ -513,12 +599,16 @@ class MusicService : Service() {
     private fun loadAlbumArt(): Bitmap? {
         try {
             currentTrack?.let { track ->
+                val cacheKey = "notif_art_" + (track.path ?: track.albumId?.toString() ?: track.name ?: "unknown")
+                DiskImageCache.getBitmap(cacheKey)?.let { return it }
                 val retriever = MediaMetadataRetriever()
                 track.path?.let { retriever.setDataSource(it) }
                 val data = retriever.embeddedPicture
                 if (data != null) {
                     retriever.release()
-                    return BitmapFactory.decodeByteArray(data, 0, data.size)
+                    val bmp = BitmapFactory.decodeByteArray(data, 0, data.size)
+                    if (bmp != null) DiskImageCache.putBitmap(cacheKey, bmp)
+                    return bmp
                 }
                 retriever.release()
 
@@ -528,7 +618,9 @@ class MusicService : Service() {
                         albumId
                     )
                     contentResolver.openInputStream(uri)?.use { input ->
-                        return BitmapFactory.decodeStream(input)
+                        val bmp = BitmapFactory.decodeStream(input)
+                        if (bmp != null) DiskImageCache.putBitmap(cacheKey, bmp)
+                        return bmp
                     }
                 }
             }
@@ -540,6 +632,20 @@ class MusicService : Service() {
 
     private fun buildNotification(albumArt: Bitmap?): Notification {
         val track = currentTrack
+
+        // Playback mode toggle action (leftmost)
+        val modeIcon = when (playbackMode) {
+            "REPEAT_ONE" -> R.drawable.ic_repeat_on
+            "SHUFFLE" -> R.drawable.ic_shuffle
+            "STOP_AFTER" -> R.drawable.ic_stop_after
+            else -> R.drawable.ic_repeat_off
+        }
+        val modeIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, MusicService::class.java).setAction(ACTION_SET_MODE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val playPauseIntent = if (isPlaying) {
             PendingIntent.getService(
@@ -588,15 +694,32 @@ class MusicService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Prepare rounded large icon (either album art or placeholder rendered to proper size)
+        val notifW = try { resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width) } catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
+        val notifH = try { resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_height) } catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
+        val radiusPx = (12f * resources.displayMetrics.density)
+        val largeIcon: Bitmap? = try {
+            if (albumArt != null) {
+                createRoundedBitmapCropped(albumArt, notifW, notifH, radiusPx)
+            } else {
+                val drawable = androidx.appcompat.content.res.AppCompatResources.getDrawable(this, R.drawable.ic_album_placeholder)
+                if (drawable != null) {
+                    val ph = drawableToSizedBitmap(drawable, notifW, notifH)
+                    createRoundedBitmapCropped(ph, notifW, notifH, radiusPx)
+                } else null
+            }
+        } catch (_: Exception) { null }
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(track?.name ?: "Unknown Track")
             .setContentText(track?.artist ?: "Unknown Artist")
             .setSmallIcon(R.drawable.ic_music_note)
-            .setLargeIcon(albumArt)
+            .setLargeIcon(largeIcon)
             .setContentIntent(contentIntent)
+            .addAction(modeIcon, "Mode", modeIntent)
             .addAction(R.drawable.ic_previous_m, "Previous", previousIntent)
             .addAction(
-                if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+                if (isPlaying) R.drawable.ic_pause_m else R.drawable.ic_play_m,
                 if (isPlaying) "Pause" else "Play",
                 playPauseIntent
             )
@@ -604,6 +727,7 @@ class MusicService : Service() {
             .addAction(R.drawable.ic_close, "Close", closeIntent)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
+                    // Show Mode, Previous, Play/Pause in compact view
                     .setShowActionsInCompactView(0, 1, 2)
                     .setMediaSession(mediaSession.sessionToken)
             )
@@ -611,5 +735,35 @@ class MusicService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(isPlaying)
             .build()
+    }
+
+    private fun drawableToSizedBitmap(drawable: android.graphics.drawable.Drawable, width: Int, height: Int): Bitmap {
+        val bmp = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bmp
+    }
+
+    private fun createRoundedBitmapCropped(src: Bitmap, outW: Int, outH: Int, radiusPx: Float): Bitmap {
+        val output = Bitmap.createBitmap(outW.coerceAtLeast(1), outH.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(output)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            isFilterBitmap = true
+            isDither = true
+        }
+        val shader = android.graphics.BitmapShader(src, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+        val scale = maxOf(outW.toFloat() / src.width, outH.toFloat() / src.height)
+        val dx = (outW - src.width * scale) / 2f
+        val dy = (outH - src.height * scale) / 2f
+        val matrix = android.graphics.Matrix().apply {
+            setScale(scale, scale)
+            postTranslate(dx, dy)
+        }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val rect = android.graphics.RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+        return output
     }
 }

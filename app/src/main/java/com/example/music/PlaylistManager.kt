@@ -95,6 +95,19 @@ object PlaylistManager {
         savePlaylists(context)
     }
 
+    fun updatePlaylist(context: Context, playlistId: String, newName: String? = null, newCoverUri: String? = null) {
+        val idx = playlists.indexOfFirst { it.id == playlistId }
+        if (idx >= 0) {
+            val cur = playlists[idx]
+            val updated = cur.copy(
+                name = newName ?: cur.name,
+                coverUri = newCoverUri ?: cur.coverUri
+            )
+            playlists[idx] = updated
+            savePlaylists(context)
+        }
+    }
+
     fun cleanupDeletedTracks(context: Context) {
         var hasChanges = false
         playlists.forEach { playlist ->

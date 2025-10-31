@@ -3,4 +3,6 @@
     <color name="accent_color">#FF5722</color>
     <color name="dark_accent_color">#D84315</color>
     <color name="unselected_tab_color">#757575</color>
+    <color name="dialog_status_bar_color">#FF1A1A1A</color>
+    <color name="popup_background">#FF424242</color>
 </resources>

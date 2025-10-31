@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="40dp"
-    android:height="40dp"
+    android:width="60dp"
+    android:height="60dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Rounded triangle contour -->
     <path
-        android:pathData="M8,5 L18,12 L8,19 Z"
-        android:fillColor="@android:color/white" />
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2.2"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M8,6 L18,12 L8,18 Z"/>
 </vector>

@@ -1,24 +1,21 @@
-
 package com.example.music
 
 import android.content.Context
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.*
 import java.io.File
-import android.widget.ImageButton
-import android.os.Build
+import androidx.core.content.ContextCompat
 
 class SearchActivity : AppCompatActivity() {
 
@@ -31,6 +28,9 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var rbGenres: RadioButton
     private lateinit var resultsRecyclerView: RecyclerView
     private lateinit var searchLayout: LinearLayout
+    private lateinit var btnClearSearch: ImageButton
+    private lateinit var progressBar: ProgressBar
+    private lateinit var emptyStateView: TextView
 
     private lateinit var trackAdapter: TrackAdapter
     private lateinit var playlistAdapter: PlaylistAdapter
@@ -46,6 +46,9 @@ class SearchActivity : AppCompatActivity() {
     private var allGenres: List<Genre> = listOf()
 
     private var currentSearchType = SearchType.TRACKS
+    private var searchJob: Job? = null
+    private val searchHistory = mutableListOf<String>()
+    private val MAX_HISTORY = 10
 
     enum class SearchType {
         TRACKS, PLAYLISTS, ALBUMS, ARTISTS, GENRES
@@ -55,6 +58,17 @@ class SearchActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
 
+        initViews()
+        setupSystemBars()
+        setupAdapters()
+        setupSearchListeners()
+        setupTypeSwitcher()
+        loadAllData()
+
+        searchEditText.requestFocus()
+    }
+
+    private fun initViews() {
         searchLayout = findViewById(R.id.searchLayout)
         searchEditText = findViewById(R.id.searchEditText)
         searchTypeGroup = findViewById(R.id.searchTypeGroup)
@@ -64,89 +78,180 @@ class SearchActivity : AppCompatActivity() {
         rbArtists = findViewById(R.id.rbArtists)
         rbGenres = findViewById(R.id.rbGenres)
         resultsRecyclerView = findViewById(R.id.resultsRecyclerView)
-        val btnBackSearch = findViewById<ImageButton>(R.id.btnBackSearch)
+        btnClearSearch = findViewById(R.id.btnClearSearch)
+        progressBar = findViewById(R.id.progressBar)
 
-        btnBackSearch.setOnClickListener {
-            finish()
+        val btnBackSearch: ImageButton = findViewById(R.id.btnBackSearch)
+        btnBackSearch.setOnClickListener { finish() }
+
+        // Настройка пустого состояния
+        setupEmptyState()
+    }
+
+    private fun setupSystemBars() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            run {
+                val flags = (window.decorView.systemUiVisibility
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+                window.decorView.systemUiVisibility = flags
+            }
+            val secondary = ThemeManager.getSecondaryColor(this)
+            val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
+            ThemeManager.applyTransparentStatusBar(window, darkIcons)
         }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
-        }
-
         restoreColor()
-        loadAllData()
+    }
 
-        // Настройка адаптеров
+    private fun setupAdapters() {
         trackAdapter = TrackAdapter(filteredTracks, false)
         playlistAdapter = PlaylistAdapter(mutableListOf(), this)
         albumAdapter = AlbumAdapter(listOf(), this)
         artistAdapter = ArtistAdapter(listOf(), this)
         genreAdapter = GenreAdapter(this, listOf())
 
-        // По умолчанию - поиск треков
         resultsRecyclerView.layoutManager = LinearLayoutManager(this)
         resultsRecyclerView.adapter = trackAdapter
-        performSearch("")
+    }
 
-        // Поиск
+    private fun setupSearchListeners() {
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                performSearch(s.toString())
+                val query = s.toString()
+                btnClearSearch.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
+
+                searchJob?.cancel()
+                searchJob = CoroutineScope(Dispatchers.Main).launch {
+                    delay(300) // debounce 300ms
+                    performSearch(query)
+                }
             }
         })
 
-        // Переключение типа поиска
+        btnClearSearch.setOnClickListener {
+            searchEditText.text.clear()
+            btnClearSearch.visibility = View.GONE
+            performSearch("")
+        }
+
+        // Обработка кнопки поиска на клавиатуре
+        searchEditText.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                val query = searchEditText.text.toString()
+                if (query.isNotEmpty()) {
+                    saveToHistory(query)
+                }
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    private fun setupTypeSwitcher() {
         searchTypeGroup.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
-                R.id.rbTracks -> {
-                    currentSearchType = SearchType.TRACKS
-                    resultsRecyclerView.layoutManager = LinearLayoutManager(this)
-                    resultsRecyclerView.adapter = trackAdapter
-                    performSearch(searchEditText.text.toString())
-                }
-                R.id.rbPlaylists -> {
-                    currentSearchType = SearchType.PLAYLISTS
-                    resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
-                    resultsRecyclerView.adapter = playlistAdapter
-                    performSearch(searchEditText.text.toString())
-                }
-                R.id.rbAlbums -> {
-                    currentSearchType = SearchType.ALBUMS
-                    resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
-                    resultsRecyclerView.adapter = albumAdapter
-                    performSearch(searchEditText.text.toString())
-                }
-                R.id.rbArtists -> {
-                    currentSearchType = SearchType.ARTISTS
-                    resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
-                    resultsRecyclerView.adapter = artistAdapter
-                    performSearch(searchEditText.text.toString())
-                }
-                R.id.rbGenres -> {
-                    currentSearchType = SearchType.GENRES
-                    resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
-                    resultsRecyclerView.adapter = genreAdapter
-                    performSearch(searchEditText.text.toString())
-                }
+                R.id.rbTracks -> switchSearchType(SearchType.TRACKS)
+                R.id.rbPlaylists -> switchSearchType(SearchType.PLAYLISTS)
+                R.id.rbAlbums -> switchSearchType(SearchType.ALBUMS)
+                R.id.rbArtists -> switchSearchType(SearchType.ARTISTS)
+                R.id.rbGenres -> switchSearchType(SearchType.GENRES)
+            }
+        }
+    }
+
+    private fun switchSearchType(newType: SearchType) {
+        currentSearchType = newType
+
+        val newAdapter = when (newType) {
+            SearchType.TRACKS -> {
+                resultsRecyclerView.layoutManager = LinearLayoutManager(this)
+                trackAdapter
+            }
+            SearchType.PLAYLISTS -> {
+                resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
+                playlistAdapter
+            }
+            SearchType.ALBUMS -> {
+                resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
+                albumAdapter
+            }
+            SearchType.ARTISTS -> {
+                resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
+                artistAdapter
+            }
+            SearchType.GENRES -> {
+                resultsRecyclerView.layoutManager = GridLayoutManager(this, 2)
+                genreAdapter
             }
         }
 
-        // Фокус на поле поиска
-        searchEditText.requestFocus()
+        resultsRecyclerView.adapter = newAdapter
+        performSearch(searchEditText.text.toString())
     }
+
+    private fun setupEmptyState() {
+        // Создаем пустое состояние программно вместо использования отдельного layout
+        emptyStateView = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = android.view.Gravity.CENTER
+            }
+            setTextColor(ContextCompat.getColor(this@SearchActivity, android.R.color.darker_gray))
+            textSize = 16f
+            text = "Введите запрос для поиска"
+            setPadding(0, 48.dpToPx(), 0, 0)
+        }
+
+        // Добавляем пустое состояние в родительский контейнер
+        val parent = resultsRecyclerView.parent as? ViewGroup
+        parent?.addView(emptyStateView)
+        emptyStateView.visibility = View.GONE
+    }
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun loadAllData() {
-        loadAllTracks()
-        allPlaylists = PlaylistManager.getPlaylists()
-        allAlbums = AlbumManager.getAlbumsFromTracks(this)
-        allArtists = ArtistManager.getArtistsFromTracks(this)
-        allGenres = GenreManager.getGenresFromTracks(this)
+        showLoading(true)
+
+        lifecycleScope.launch {
+            try {
+                // Загрузка треков с кэшированием
+                val cachedTracks = withContext(Dispatchers.IO) {
+                    DataCache.loadTracks(this@SearchActivity)
+                }
+                if (cachedTracks != null && cachedTracks.isNotEmpty()) {
+                    allTracks.clear()
+                    allTracks.addAll(cachedTracks)
+                } else {
+                    loadAllTracksFromStorage()
+                }
+
+                // Загрузка остальных данных с кэшированием
+                allPlaylists = PlaylistManager.getPlaylists()
+                allAlbums = DataCache.loadAlbums(this@SearchActivity) ?:
+                        AlbumManager.getAlbumsFromTracks(this@SearchActivity)
+                allArtists = DataCache.loadArtists(this@SearchActivity) ?:
+                        ArtistManager.getArtistsFromTracks(this@SearchActivity)
+                allGenres = DataCache.loadGenres(this@SearchActivity) ?:
+                        GenreManager.getGenresFromTracks(this@SearchActivity)
+
+                performSearch(searchEditText.text.toString())
+
+            } catch (e: Exception) {
+                handleSearchError(e)
+            } finally {
+                showLoading(false)
+            }
+        }
     }
 
-    private fun loadAllTracks() {
+    private fun loadAllTracksFromStorage() {
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
@@ -205,44 +310,67 @@ class SearchActivity : AppCompatActivity() {
                 }
             }
         }
+
+        // Сохраняем в кэш
+        CoroutineScope(Dispatchers.IO).launch {
+            DataCache.saveTracks(this@SearchActivity, allTracks)
+        }
     }
 
     private fun performSearch(query: String) {
-        when (currentSearchType) {
-            SearchType.TRACKS -> searchTracks(query)
-            SearchType.PLAYLISTS -> searchPlaylists(query)
-            SearchType.ALBUMS -> searchAlbums(query)
-            SearchType.ARTISTS -> searchArtists(query)
-            SearchType.GENRES -> searchGenres(query)
+        val trimmedQuery = query.trim()
+
+        if (trimmedQuery.isEmpty()) {
+            showEmptyState(true, "")
+            return
+        }
+
+        showLoading(true)
+
+        try {
+            when (currentSearchType) {
+                SearchType.TRACKS -> searchTracks(trimmedQuery)
+                SearchType.PLAYLISTS -> searchPlaylists(trimmedQuery)
+                SearchType.ALBUMS -> searchAlbums(trimmedQuery)
+                SearchType.ARTISTS -> searchArtists(trimmedQuery)
+                SearchType.GENRES -> searchGenres(trimmedQuery)
+            }
+
+            if (trimmedQuery.isNotEmpty()) {
+                saveToHistory(trimmedQuery)
+            }
+
+        } catch (e: Exception) {
+            handleSearchError(e)
+        } finally {
+            showLoading(false)
         }
     }
 
     private fun searchTracks(query: String) {
         filteredTracks.clear()
-        if (query.isEmpty()) {
-            filteredTracks.addAll(allTracks)
-        } else {
-            filteredTracks.addAll(
-                allTracks.filter {
-                    it.name.contains(query, ignoreCase = true) ||
-                            it.artist?.contains(query, ignoreCase = true) == true
-                }
-            )
+        val results = allTracks.filter {
+            it.name.contains(query, ignoreCase = true) ||
+                    it.artist?.contains(query, ignoreCase = true) == true ||
+                    it.albumName?.contains(query, ignoreCase = true) == true
         }
+        filteredTracks.addAll(results)
         trackAdapter.notifyDataSetChanged()
+        showEmptyState(results.isEmpty(), query)
     }
 
     private fun searchPlaylists(query: String) {
-        val filtered = if (query.isEmpty()) {
+        val results = if (query.isEmpty()) {
             allPlaylists
         } else {
             allPlaylists.filter { it.name.contains(query, ignoreCase = true) }
         }
-        playlistAdapter.updatePlaylists(filtered)
+        playlistAdapter.updatePlaylists(results)
+        showEmptyState(results.isEmpty(), query)
     }
 
     private fun searchAlbums(query: String) {
-        val filtered = if (query.isEmpty()) {
+        val results = if (query.isEmpty()) {
             allAlbums
         } else {
             allAlbums.filter {
@@ -250,42 +378,104 @@ class SearchActivity : AppCompatActivity() {
                         it.artist?.contains(query, ignoreCase = true) == true
             }
         }
-        albumAdapter.updateAlbums(filtered)
+        albumAdapter.updateAlbums(results)
+        showEmptyState(results.isEmpty(), query)
     }
 
     private fun searchArtists(query: String) {
-        val filtered = if (query.isEmpty()) {
+        val results = if (query.isEmpty()) {
             allArtists
         } else {
             allArtists.filter { it.name.contains(query, ignoreCase = true) }
         }
-        artistAdapter.updateArtists(filtered)
+        artistAdapter.updateArtists(results)
+        showEmptyState(results.isEmpty(), query)
     }
 
     private fun searchGenres(query: String) {
-        val filtered = if (query.isEmpty()) {
+        val results = if (query.isEmpty()) {
             allGenres
         } else {
             allGenres.filter { it.name.contains(query, ignoreCase = true) }
         }
-        genreAdapter.updateGenres(filtered)
+        genreAdapter.updateGenres(results)
+        showEmptyState(results.isEmpty(), query)
+    }
+
+    private fun saveToHistory(query: String) {
+        if (query.isNotEmpty() && !searchHistory.contains(query)) {
+            searchHistory.remove(query)
+            searchHistory.add(0, query)
+            if (searchHistory.size > MAX_HISTORY) {
+                // Заменяем removeLast() на совместимую версию
+                searchHistory.removeAt(searchHistory.lastIndex)
+            }
+            // Можно сохранить в SharedPreferences для постоянного хранения
+            val prefs = getSharedPreferences("search_history", Context.MODE_PRIVATE)
+            prefs.edit().putStringSet("history", searchHistory.toSet()).apply()
+        }
+    }
+
+    private fun showEmptyState(show: Boolean, query: String = "") {
+        if (show) {
+            emptyStateView.text = if (query.isNotEmpty()) {
+                "По запросу \"$query\" ничего не найдено"
+            } else {
+                "Введите запрос для поиска"
+            }
+            emptyStateView.visibility = View.VISIBLE
+            resultsRecyclerView.visibility = View.GONE
+        } else {
+            emptyStateView.visibility = View.GONE
+            resultsRecyclerView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun showLoading(show: Boolean) {
+        progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) {
+            resultsRecyclerView.visibility = View.GONE
+            emptyStateView.visibility = View.GONE
+        }
+    }
+
+    private fun handleSearchError(error: Throwable) {
+        Toast.makeText(this, "Ошибка поиска: ${error.message}", Toast.LENGTH_SHORT).show()
+        showEmptyState(true, searchEditText.text.toString())
     }
 
     private fun restoreColor() {
-        val sharedPreferences = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val scheme = sharedPreferences.getInt("color_scheme", 0)
-        val color = when (scheme) {
-            1 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.darker_gray))
-            2 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-            3 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
-        }
-        searchLayout.background = color
+        val gradStart = ThemeManager.getPrimaryGradientStart(this)
+        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
+        val bg = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            intArrayOf(gradStart, gradEnd)
+        )
+        searchLayout.background = bg
     }
 
     override fun onResume() {
         super.onResume()
-        // Обновляем адаптер при возврате на экран
         trackAdapter.notifyDataSetChanged()
+        val secondary = ThemeManager.getSecondaryColor(this)
+        val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
+        ThemeManager.applyTransparentStatusBarWithBackground(window, darkIcons, this)
+        ThemeManager.showSystemBars(window, this)
+
+        // Загрузка истории поиска
+        val prefs = getSharedPreferences("search_history", Context.MODE_PRIVATE)
+        val history = prefs.getStringSet("history", emptySet()) ?: emptySet()
+        searchHistory.clear()
+        searchHistory.addAll(history)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) ThemeManager.showSystemBars(window, this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        searchJob?.cancel()
     }
 }

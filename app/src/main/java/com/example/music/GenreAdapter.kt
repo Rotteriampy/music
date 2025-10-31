@@ -16,6 +16,11 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import android.graphics.BitmapShader
+import android.graphics.Matrix
+import android.graphics.RectF
+import android.graphics.Shader
+import java.io.InputStream
 
 class GenreAdapter(
     private val context: Context,
@@ -62,7 +67,15 @@ class GenreAdapter(
         // Загружаем обложку (кроме Unknown)
         if (!genre.name.equals("Unknown", ignoreCase = true)) {
             if (customCoverUri != null) {
-                holder.coverImage.setImageURI(Uri.parse(customCoverUri))
+                try {
+                    val uri = Uri.parse(customCoverUri)
+                    val input: InputStream? = context.contentResolver.openInputStream(uri)
+                    val bmp = BitmapFactory.decodeStream(input)
+                    if (bmp != null) holder.coverImage.setImageBitmap(roundToView(holder.coverImage, bmp, 12f))
+                    input?.close()
+                } catch (_: Exception) {
+                    holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
+                }
             } else {
                 // Ищем первый трек с обложкой
                 var set = false
@@ -72,7 +85,7 @@ class GenreAdapter(
                 }
                 if (!set) {
                     val displayName = (customName ?: genre.name).trim()
-                    holder.coverImage.setImageBitmap(generateLetterCover(displayName))
+                    holder.coverImage.setImageBitmap(roundToView(holder.coverImage, generateLetterCover(displayName), 12f))
                 }
             }
         }
@@ -98,7 +111,7 @@ class GenreAdapter(
             val artBytes = retriever.embeddedPicture
             if (artBytes != null) {
                 val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                imageView.setImageBitmap(bitmap)
+                imageView.setImageBitmap(roundToView(imageView, bitmap, 12f))
                 retriever.release()
                 return true
             }
@@ -127,6 +140,25 @@ class GenreAdapter(
         val y = (size + bounds.height()) / 2f - bounds.bottom
         canvas.drawText(letter, x, y, paint)
         return bmp
+    }
+
+    private fun roundToView(view: ImageView, src: Bitmap, radiusDp: Float): Bitmap {
+        val radiusPx = (radiusDp * view.resources.displayMetrics.density)
+        val outW = if (view.width > 0) view.width else (view.layoutParams?.width ?: 0).let { if (it > 0) it else view.resources.displayMetrics.widthPixels / 2 }
+        val outH = if (view.height > 0) view.height else (view.layoutParams?.height ?: 0).let { if (it > 0) it else outW }
+        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true }
+        val shader = BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val scale = maxOf(outW.toFloat() / src.width, outH.toFloat() / src.height)
+        val dx = (outW - src.width * scale) / 2f
+        val dy = (outH - src.height * scale) / 2f
+        val matrix = Matrix().apply { setScale(scale, scale); postTranslate(dx, dy) }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val rect = RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+        return out
     }
 
     override fun getItemCount(): Int = genres.size

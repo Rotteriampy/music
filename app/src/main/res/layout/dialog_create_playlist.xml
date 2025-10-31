@@ -1,31 +1,121 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@android:color/transparent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <EditText
-            android:id="@+id/playlistNameEdit"
-            android:layout_width="0dp"
+        <!-- Верхняя панель -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="Название плейлиста"
-            android:layout_marginEnd="8dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="24dp">
 
-        <ImageButton
-            android:id="@+id/chooseCoverButton"
-            android:layout_width="wrap_content"
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Создание плейлиста"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+        <!-- Секция обложки -->
+        <LinearLayout
+            android:layout_width="175dp"
             android:layout_height="wrap_content"
-            android:background="@null"
-            android:src="@android:drawable/ic_menu_gallery"
-            android:contentDescription="Добавить обложку" />
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:layout_gravity="center"
+            android:padding="16dp">
+
+            <!-- Контейнер для обложки -->
+            <ImageView
+                android:id="@+id/createPlaylistCover"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_album_placeholder"
+                android:background="@drawable/rounded_corners"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_gravity="center" />
+
+        </LinearLayout>
+
+        <!-- Поле ввода названия -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Заголовок с иконкой -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_reorder"
+                    android:tint="#CCCCCC"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Название плейлиста"
+                    android:textColor="#CCCCCC"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Поле ввода -->
+            <EditText
+                android:id="@+id/playlistNameEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edit_text_background"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:hint="Введите название плейлиста"
+                android:textColorHint="#B0B0B0"
+                android:singleLine="true" />
+
+        </LinearLayout>
+
+        <!-- Кнопка создания -->
+        <Button
+            android:id="@+id/btnCreatePlaylist"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="Создать"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#664CAF50"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
-
-</LinearLayout>
+</ScrollView>

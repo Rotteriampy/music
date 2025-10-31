@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.graphics.Color
 import androidx.recyclerview.widget.SimpleItemAnimator
+import android.graphics.drawable.GradientDrawable
 
 class QueueActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +37,13 @@ class QueueActivity : AppCompatActivity() {
         (recycler.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
         recycler.itemAnimator = null
         adapter.submit(QueueManager.getCurrentQueue())
+
+        // Apply themed gradient background
+        applyGradientBackground()
+        // Show bars to reset any flags
+        ThemeManager.showSystemBars(window, this)
+        // Do not draw under status bar to keep header fixed
+        forceWhiteStatusBarIcons()
     }
 
     private val itemTouchHelper by lazy {
@@ -94,6 +103,52 @@ class QueueActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         try { unregisterReceiver(refreshReceiver) } catch (_: Exception) {}
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyGradientBackground()
+        ThemeManager.showSystemBars(window, this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            applyGradientBackground()
+            ThemeManager.showSystemBars(window, this)
+            forceWhiteStatusBarIcons()
+        }
+    }
+
+    private fun applyGradientBackground() {
+        val start = ThemeManager.getPrimaryGradientStart(this)
+        val end = ThemeManager.getPrimaryGradientEnd(this)
+        val gradient = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(start, end))
+        // Set as window background
+        try { window.setBackgroundDrawable(gradient) } catch (_: Exception) {}
+        // Color bars to match gradient edges
+        try { window.statusBarColor = start } catch (_: Exception) {}
+        try { window.navigationBarColor = end } catch (_: Exception) {}
+    }
+
+    private fun setLayoutFullscreen() {
+        // No-op: we keep content below the status bar to prevent header shifting
+    }
+
+    private fun applyContentTopPadding() { /* no-op */ }
+
+    private fun forceWhiteStatusBarIcons() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val decor = window.decorView
+            var vis = decor.systemUiVisibility
+            // Ensure LIGHT_STATUS_BAR flag is cleared so icons are white
+            vis = vis and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            decor.systemUiVisibility = vis
+        }
     }
 
     private val refreshReceiver = object : BroadcastReceiver() {

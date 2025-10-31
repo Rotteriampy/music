@@ -3,16 +3,75 @@
     android:layout_width="match_parent"
     android:layout_height="400dp"
     android:orientation="vertical"
-    android:paddingTop="16dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingBottom="0dp"
-    android:background="@android:color/black">
+    android:background="@android:color/transparent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:layout_marginTop="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Добавить треки"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:paddingStart="8dp"/>
+
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/trackListDialog"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:color/black" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp"
+        android:clipToPadding="false"
+        android:background="@android:color/transparent" />
+
+    <!-- Панель кнопок в стиле редактора тегов -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="16dp">
+
+        <!-- Кнопка Отмена - полупрозрачный красный -->
+        <Button
+            android:id="@+id/btnCancelAdd"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Отмена"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#50FF5252"
+            android:textSize="14sp"
+            android:padding="12dp" />
+
+        <!-- Кнопка Добавить - полупрозрачный зеленый -->
+        <Button
+            android:id="@+id/btnConfirmAdd"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Добавить"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#504CAF50"
+            android:textSize="14sp"
+            android:padding="12dp" />
+
+    </LinearLayout>
 
 </LinearLayout>

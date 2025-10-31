@@ -3,6 +3,7 @@ package com.example.music
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.ColorDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.ImageButton
@@ -11,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
@@ -20,7 +22,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.widget.PopupMenu
 import android.widget.EditText
 import android.widget.Button
-import android.net.Uri
 import android.view.View
 import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
@@ -31,6 +32,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.BitmapFactory
+import android.renderscript.RenderScript
+import android.renderscript.Allocation
+import android.renderscript.Element
+import android.renderscript.ScriptIntrinsicBlur
+import android.widget.RelativeLayout
 
 class AlbumActivity : AppCompatActivity() {
 
@@ -41,14 +49,24 @@ class AlbumActivity : AppCompatActivity() {
     private lateinit var btnShuffleAlbum: ImageButton
     private lateinit var albumRootLayout: LinearLayout
     private var editDialogCoverView: ImageView? = null
-    private lateinit var albumCoverImage: ImageView
     private lateinit var albumStatsText: TextView
     private lateinit var btnSortAlbum: ImageButton
     private lateinit var btnReorderTracks: ImageButton
     private var isReorderMode = false
     private var itemTouchHelper: ItemTouchHelper? = null
+    private val trackUiReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.example.music.TRACK_CHANGED",
+                "com.example.music.PLAYBACK_STATE_CHANGED" -> {
+                    if (::trackAdapter.isInitialized) trackAdapter.notifyDataSetChanged()
+                }
+            }
+        }
+    }
 
     private var albumName: String? = null
+    private lateinit var btnSearchAlbum: ImageButton
     private lateinit var trackAdapter: TrackAdapter
     private val albumTracks = mutableListOf<Track>()
 
@@ -76,10 +94,12 @@ class AlbumActivity : AppCompatActivity() {
         }
     }
 
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_album)
 
+        setContentView(R.layout.activity_album)
         albumRootLayout = findViewById(R.id.albumRootLayout)
         albumNameText = findViewById(R.id.albumNameText)
         albumTracksList = findViewById(R.id.albumTracksList)
@@ -87,8 +107,7 @@ class AlbumActivity : AppCompatActivity() {
         btnPlayAlbum = findViewById(R.id.btnPlayAlbum)
         btnShuffleAlbum = findViewById(R.id.btnShuffleAlbum)
         btnAlbumMore = findViewById(R.id.btnAlbumMore)
-        btnAlbumMore.setOnClickListener { showAlbumMoreMenu(it) }
-        albumCoverImage = findViewById(R.id.albumCoverImage)
+        btnSearchAlbum = findViewById(R.id.btnSearch)
         albumStatsText = findViewById(R.id.albumStatsText)
         btnSortAlbum = findViewById(R.id.btnSortAlbum)
         btnReorderTracks = findViewById(R.id.btnReorderTracks)
@@ -101,16 +120,31 @@ class AlbumActivity : AppCompatActivity() {
         loadCustomAlbumData()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, android.R.color.black)
+            // Рисуем контент под статус-баром и делаем его прозрачным
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            run {
+                val flags = (window.decorView.systemUiVisibility
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+                window.decorView.systemUiVisibility = flags
+            }
+        }
+
+        // Показываем системные панели, включаем layout под статус-бар и применяем цвет нав-бара/иконок
+        run {
+            ThemeManager.showSystemBars(window, this)
+            setLayoutFullscreen()
+            applyContentTopPadding()
+            reapplyBarsFromBackground()
         }
 
         if (albumName != null) {
-            albumNameText.text = albumName
             loadAlbumTracks()
             trackAdapter = TrackAdapter(albumTracks, isFromPlaylist = false)
             albumTracksList.adapter = trackAdapter
             updateStats()
-            loadAlbumCover(albumName, albumCoverImage)
+            loadAlbumCover(albumName)
             setupReorder()
         } else {
             finish()
@@ -121,6 +155,145 @@ class AlbumActivity : AppCompatActivity() {
         btnShuffleAlbum.setOnClickListener { shuffleAndPlayAlbum() }
         btnSortAlbum.setOnClickListener { showSortMenu(it) }
         btnReorderTracks.setOnClickListener { toggleReorderMode() }
+        btnAlbumMore.setImageResource(R.drawable.ic_edit)
+        btnAlbumMore.setOnClickListener { showEditAlbumDialog() }
+        btnSearchAlbum.setOnClickListener { showTrackSearchDialog() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Обновляем адаптер при возврате на экран
+        if (::trackAdapter.isInitialized) {
+            trackAdapter.notifyDataSetChanged()
+        }
+        // Обновляем статус- и нав-бар под текущий фон
+        ThemeManager.showSystemBars(window, this)
+        setLayoutFullscreen()
+        applyContentTopPadding()
+        reapplyBarsFromBackground()
+        val filter = android.content.IntentFilter().apply {
+            addAction("com.example.music.TRACK_CHANGED")
+            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            trackUiReceiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            ThemeManager.showSystemBars(window, this)
+            setLayoutFullscreen()
+            applyContentTopPadding()
+            reapplyBarsFromBackground()
+        }
+    }
+
+    private fun setLayoutFullscreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            run {
+                val decor = window.decorView
+                var flags = decor.systemUiVisibility
+                flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                decor.systemUiVisibility = flags
+            }
+        }
+    }
+
+    private fun applyContentTopPadding() {
+        val res = resources
+        val resId = res.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = if (resId > 0) res.getDimensionPixelSize(resId) else 0
+        val sidePad = dp(16)
+        albumRootLayout.setPadding(sidePad, statusBarHeight + sidePad, sidePad, sidePad)
+    }
+
+    private fun reapplyBarsFromBackground() {
+        when (val bg = albumRootLayout.background) {
+            is BitmapDrawable -> bg.bitmap?.let { applyBarsFromBitmapTop(it) }
+            is ColorDrawable -> applyBarsForColor(bg.color)
+            else -> applyBarsForColor(ThemeManager.getPrimaryGradientStart(this))
+        }
+    }
+
+    private fun applyBarsFromBitmapTop(bmp: Bitmap) {
+        try {
+            val h = bmp.height.coerceAtLeast(1)
+            val sampleHeight = (h * 0.08f).toInt().coerceIn(1, h)
+            val yEnd = sampleHeight
+            var rSum = 0L
+            var gSum = 0L
+            var bSum = 0L
+            var count = 0L
+            val w = bmp.width
+            val step = (w / 50).coerceAtLeast(1)
+            for (y in 0 until yEnd) {
+                var x = 0
+                while (x < w) {
+                    val c = bmp.getPixel(x, y)
+                    rSum += (c shr 16) and 0xFF
+                    gSum += (c shr 8) and 0xFF
+                    bSum += c and 0xFF
+                    count++
+                    x += step
+                }
+            }
+            if (count > 0) {
+                val r = (rSum / count).toInt().coerceIn(0, 255)
+                val g = (gSum / count).toInt().coerceIn(0, 255)
+                val b = (bSum / count).toInt().coerceIn(0, 255)
+                val color = android.graphics.Color.rgb(r, g, b)
+                applyBarsForColor(color)
+            }
+        } catch (_: Exception) { }
+    }
+
+    private fun applyBarsForColor(color: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+                // Статус-бар оставляем прозрачным, чтобы фон был реальным продолжением
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                // Нав-бар красим в цвет верхней части фона
+                window.navigationBarColor = color
+            } catch (_: Exception) { }
+        }
+        val luminance = ColorUtils.calculateLuminance(color)
+        val lightIcons = luminance > 0.5
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val decor = window.decorView
+            var vis = decor.systemUiVisibility
+            vis = if (lightIcons) {
+                vis or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                vis and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            }
+            decor.systemUiVisibility = vis
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            val decor = window.decorView
+            var vis = decor.systemUiVisibility
+            vis = if (lightIcons) {
+                vis or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            } else {
+                vis and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            }
+            decor.systemUiVisibility = vis
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try { unregisterReceiver(trackUiReceiver) } catch (_: Exception) {}
     }
 
     private fun loadAlbumTracks() {
@@ -182,7 +355,32 @@ class AlbumActivity : AppCompatActivity() {
             }
         }
     }
+    private fun setupDialogGradient(dialog: AlertDialog) {
+        // Заменяем градиент на серый фон
+        val bg = ContextCompat.getDrawable(this, R.drawable.dialog_background)
+        dialog.window?.setBackgroundDrawable(bg)
 
+        // Устанавливаем темные цвета для системных баров
+        val darkColor = Color.parseColor("#D3D3D3")
+        dialog.window?.let { window ->
+            window.statusBarColor = darkColor
+            window.navigationBarColor = darkColor
+
+            // Светлые иконки в статус-баре для лучшей читаемости на темном фоне
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                var flags = window.decorView.systemUiVisibility
+                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                window.decorView.systemUiVisibility = flags
+            }
+
+            // Для навигационной панели (Android 8.0+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                var flags = window.decorView.systemUiVisibility
+                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                window.decorView.systemUiVisibility = flags
+            }
+        }
+    }
     private fun playAlbum() {
         if (albumTracks.isEmpty()) {
             Toast.makeText(this, "Альбом пуст", Toast.LENGTH_SHORT).show()
@@ -233,49 +431,24 @@ class AlbumActivity : AppCompatActivity() {
     }
 
     private fun restoreColor() {
-        val sharedPreferences = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val scheme = sharedPreferences.getInt("color_scheme", 0)
-        val color = when (scheme) {
-            1 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.darker_gray))
-            2 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-            3 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
-        }
-        albumRootLayout.background = color
-    }
+        val gradStart = ThemeManager.getPrimaryGradientStart(this)
+        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
 
-    override fun onResume() {
-        super.onResume()
-        // Обновляем адаптер при возврате на экран
-        trackAdapter.notifyDataSetChanged()
-    }
+        val gd = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            intArrayOf(gradStart, gradEnd)
+        )
 
-    private fun showAlbumMoreMenu(view: View) {
-        val popup = PopupMenu(this, view)
-        popup.menuInflater.inflate(R.menu.album_more_menu, popup.menu)
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.menu_edit_album -> {
-                    showEditAlbumDialog()
-                    true
-                }
-                R.id.menu_search -> {
-                    showTrackSearchDialog()
-                    true
-                }
-                else -> false
-            }
-        }
-        popup.show()
+        albumRootLayout.background = gd // или artistRootLayout, genreRootLayout
     }
 
     private fun showEditAlbumDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_edit_album, null)
         val coverImageView = dialogView.findViewById<ImageView>(R.id.editAlbumCover)
         val nameEditText = dialogView.findViewById<EditText>(R.id.editAlbumName)
-        val selectCoverButton = dialogView.findViewById<Button>(R.id.btnSelectAlbumCover)
+        val saveButton = dialogView.findViewById<Button>(R.id.btnSaveAlbum)
 
-        editDialogCoverView = coverImageView // Сохраняем ссылку
+        editDialogCoverView = coverImageView
 
         // Загружаем текущие данные
         nameEditText.setText(customAlbumName ?: albumName)
@@ -286,43 +459,38 @@ class AlbumActivity : AppCompatActivity() {
             coverImageView.setImageResource(R.drawable.ic_album_placeholder)
         }
 
-        selectCoverButton.setOnClickListener {
+        // Обработчик клика на саму обложку
+        coverImageView.setOnClickListener {
             albumCoverLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Редактировать альбом")
             .setView(dialogView)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val newName = nameEditText.text.toString().trim()
-                if (newName.isNotEmpty()) {
-                    customAlbumName = newName
-                    saveCustomAlbumData()
-                    updateAlbumUI()
-                }
-                editDialogCoverView = null
-            }
-            .setNegativeButton("Отмена") { _, _ ->
-                editDialogCoverView = null
-            }
             .create()
+
+        setupDialogGradient(dialog)
+
+        // Обработчик кнопки сохранения (после создания dialog)
+        saveButton.setOnClickListener {
+            val newName = nameEditText.text.toString().trim()
+            if (newName.isNotEmpty()) {
+                customAlbumName = newName
+                saveCustomAlbumData()
+                updateAlbumUI()
+                loadAlbumCover(customAlbumName ?: albumName)
+            }
+            editDialogCoverView = null
+            dialog.dismiss() // Закрыть диалог
+        }
 
         dialog.show()
 
-        // Применяем черную тему
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(
-            ContextCompat.getColor(this, android.R.color.black)
-        ))
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(
-            ContextCompat.getColor(this, android.R.color.white)
-        )
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(
-            ContextCompat.getColor(this, android.R.color.white)
-        )
-
+        // Настройка цветов текста для лучшей читаемости на градиентном фоне
         val titleView = dialog.findViewById<TextView>(android.R.id.title)
         titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+
+        dialog.window?.let { ThemeManager.showSystemBars(it, this) }
+        reapplyBarsFromBackground()
     }
 
     private fun saveCustomAlbumData() {
@@ -345,15 +513,30 @@ class AlbumActivity : AppCompatActivity() {
         albumNameText.text = customAlbumName ?: albumName
     }
 
-    private fun loadAlbumCover(albumName: String?, imageView: ImageView) {
+    // НОВАЯ ФУНКЦИЯ: Обрезает Bitmap до квадратного, центрируя.
+    private fun getSquareBitmap(src: Bitmap): Bitmap {
+        val size = src.width.coerceAtMost(src.height)
+        val x = (src.width - size) / 2
+        val y = (src.height - size) / 2
+        // Используем 0, 0, size, size, если хотим обрезать от верхнего левого угла
+        // Но для CenterCrop лучше центрировать
+        return Bitmap.createBitmap(src, x, y, size, size)
+    }
+
+    private fun loadAlbumCover(albumName: String?) {
         if (albumName == null) {
-            imageView.setImageResource(R.drawable.ic_album_placeholder)
+            // Не устанавливаем обложку, но можно установить дефолтный фон
             return
         }
 
-        // Сначала используем кастомную обложку, если задана (чтобы совпадало со списком)
+        // Сначала используем кастомную обложку, если задана
         customAlbumCover?.let {
-            imageView.setImageURI(it)
+            try {
+                contentResolver.openInputStream(it)?.use { input ->
+                    val bmp = BitmapFactory.decodeStream(input)
+                    if (bmp != null) setBlurredBackground(getSquareBitmap(bmp))
+                }
+            } catch (_: Exception) { }
             return
         }
 
@@ -367,8 +550,9 @@ class AlbumActivity : AppCompatActivity() {
                 val artBytes = retriever.embeddedPicture
                 retriever.release()
                 if (artBytes != null) {
-                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                    imageView.setImageBitmap(bitmap)
+                    var bitmap = android.graphics.BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                    bitmap = getSquareBitmap(bitmap)
+                    setBlurredBackground(bitmap)
                     found = true
                     break
                 }
@@ -377,9 +561,10 @@ class AlbumActivity : AppCompatActivity() {
         if (!found) {
             val name = (customAlbumName ?: albumName ?: "").trim()
             if (name.equals("Unknown", ignoreCase = true) || name.equals("<unknown>", ignoreCase = true) || name.isEmpty()) {
-                imageView.setImageResource(R.drawable.ic_album_placeholder)
+                // Не устанавливаем обложку для неизвестных альбомов
             } else {
-                imageView.setImageBitmap(generateLetterCover(name))
+                val bmp = generateLetterCover(name)
+                setBlurredBackground(bmp)
             }
         }
     }
@@ -404,38 +589,95 @@ class AlbumActivity : AppCompatActivity() {
         return bmp
     }
 
+    private fun setBlurredBackground(src: Bitmap) {
+        try {
+            val scaled = Bitmap.createScaledBitmap(
+                src,
+                (src.width * 0.25f).toInt().coerceAtLeast(1),
+                (src.height * 0.25f).toInt().coerceAtLeast(1),
+                true
+            )
+            val blurred = blurWithRenderScriptCompat(this, scaled, 20f)
+            val dark = applyDarkOverlay(blurred, 160)
+            albumRootLayout.background = BitmapDrawable(resources, dark)
+            reapplyBarsFromBackground()
+        } catch (_: Exception) { }
+    }
+
+    private fun applyDarkOverlay(src: Bitmap, alpha: Int): Bitmap {
+        val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawBitmap(src, 0f, 0f, null)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.color = Color.argb(alpha.coerceIn(0,255), 0, 0, 0)
+        canvas.drawRect(0f, 0f, out.width.toFloat(), out.height.toFloat(), paint)
+        return out
+    }
+
+    @Suppress("DEPRECATION")
+    private fun blurWithRenderScriptCompat(context: Context, bitmap: Bitmap, radius: Float): Bitmap {
+        val rs = RenderScript.create(context)
+        val input = Allocation.createFromBitmap(rs, bitmap)
+        val output = Allocation.createTyped(rs, input.type)
+        val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+        script.setRadius(radius.coerceIn(0f, 25f))
+        script.setInput(input)
+        script.forEach(output)
+        output.copyTo(bitmap)
+        rs.destroy()
+        return bitmap
+    }
+
     private fun showSortMenu(view: View) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_sort, null)
 
         val sortTypeGroup = dialogView.findViewById<RadioGroup>(R.id.sortTypeGroup)
         val btnSortAsc = dialogView.findViewById<ImageButton>(R.id.btnSortAsc)
         val btnSortDesc = dialogView.findViewById<ImageButton>(R.id.btnSortDesc)
-        val sortDirectionText = dialogView.findViewById<TextView>(R.id.sortDirectionText)
+        val sortAscContainer = dialogView.findViewById<LinearLayout>(R.id.sortAscContainer)
+        val sortDescContainer = dialogView.findViewById<LinearLayout>(R.id.sortDescContainer)
+        val sortDirectionIndicator = dialogView.findViewById<View>(R.id.sortDirectionIndicator)
         val btnApplySort = dialogView.findViewById<Button>(R.id.btnApplySort)
         val btnCancelSort = dialogView.findViewById<Button>(R.id.btnCancelSort)
 
+        // Установка текущих значений
         when (sortType) {
             0 -> sortTypeGroup.check(R.id.sortByDate)
             1 -> sortTypeGroup.check(R.id.sortByName)
             2 -> sortTypeGroup.check(R.id.sortByArtist)
             3 -> sortTypeGroup.check(R.id.sortByDuration)
+            4 -> sortTypeGroup.check(R.id.sortByPlays)
         }
 
-        sortDirectionText.text = if (sortAscending) "↑" else "↓"
+        // Обновление индикатора направления
+        updateSortDirectionIndicator(sortDirectionIndicator, sortAscending)
 
-        btnSortAsc.setOnClickListener {
-            sortAscending = true
-            sortDirectionText.text = "↑"
+        // Обработчики направления сортировки
+        val directionClickListener = View.OnClickListener { v ->
+            when (v.id) {
+                R.id.sortAscContainer, R.id.btnSortAsc -> {
+                    sortAscending = true
+                    updateSortDirectionIndicator(sortDirectionIndicator, true)
+                }
+                R.id.sortDescContainer, R.id.btnSortDesc -> {
+                    sortAscending = false
+                    updateSortDirectionIndicator(sortDirectionIndicator, false)
+                }
+            }
         }
 
-        btnSortDesc.setOnClickListener {
-            sortAscending = false
-            sortDirectionText.text = "↓"
-        }
+        sortAscContainer.setOnClickListener(directionClickListener)
+        sortDescContainer.setOnClickListener(directionClickListener)
+        btnSortAsc.setOnClickListener(directionClickListener)
+        btnSortDesc.setOnClickListener(directionClickListener)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .create()
+
+        // Установка градиентного фона (вместо XML)
+        setupDialogGradient(dialog)
+        dialog.window?.setDimAmount(0.7f) // Затемнение фона
 
         btnApplySort.setOnClickListener {
             sortType = when (sortTypeGroup.checkedRadioButtonId) {
@@ -443,18 +685,37 @@ class AlbumActivity : AppCompatActivity() {
                 R.id.sortByName -> 1
                 R.id.sortByArtist -> 2
                 R.id.sortByDuration -> 3
+                R.id.sortByPlays -> 4
                 else -> 0
             }
-            applyAlbumSort()
+            applyAlbumSort() // Вызов соответствующего метода сортировки
             dialog.dismiss()
         }
 
-        btnCancelSort.setOnClickListener { dialog.dismiss() }
-
-        val titleView = dialog.findViewById<TextView>(android.R.id.title)
-        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        btnCancelSort.setOnClickListener {
+            dialog.dismiss()
+        }
 
         dialog.show()
+
+        // Настройка размера окна
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.85).toInt(),
+            android.view.WindowManager.LayoutParams.WRAP_CONTENT
+        )
+    }
+
+    // Добавьте этот метод в класс AlbumActivity
+    private fun updateSortDirectionIndicator(indicator: View, isAscending: Boolean) {
+        val params = indicator.layoutParams as RelativeLayout.LayoutParams
+        if (isAscending) {
+            params.addRule(RelativeLayout.ALIGN_PARENT_START)
+            params.removeRule(RelativeLayout.ALIGN_PARENT_END)
+        } else {
+            params.addRule(RelativeLayout.ALIGN_PARENT_END)
+            params.removeRule(RelativeLayout.ALIGN_PARENT_START)
+        }
+        indicator.layoutParams = params
     }
 
     private fun applyAlbumSort() {
@@ -463,6 +724,7 @@ class AlbumActivity : AppCompatActivity() {
             1 -> if (sortAscending) albumTracks.sortBy { it.name.lowercase() } else albumTracks.sortByDescending { it.name.lowercase() }
             2 -> if (sortAscending) albumTracks.sortBy { (it.artist ?: "").lowercase() } else albumTracks.sortByDescending { (it.artist ?: "").lowercase() }
             3 -> if (sortAscending) albumTracks.sortBy { it.duration ?: 0L } else albumTracks.sortByDescending { it.duration ?: 0L }
+            4 -> if (sortAscending) albumTracks.sortBy { ListeningStats.getPlayCount(it.path ?: "") } else albumTracks.sortByDescending { ListeningStats.getPlayCount(it.path ?: "") }
         }
         trackAdapter.notifyDataSetChanged()
         updateStats()
@@ -524,23 +786,46 @@ class AlbumActivity : AppCompatActivity() {
     }
 
     private fun showTrackSearchDialog() {
-        val input = EditText(this)
-        input.hint = "Поиск треков..."
-        AlertDialog.Builder(this)
-            .setTitle("Поиск")
-            .setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                val q = input.text.toString().trim()
-                if (q.isEmpty()) {
-                    loadAlbumTracks()
-                    trackAdapter.updateTracks(albumTracks)
-                } else {
-                    val filtered = albumTracks.filter { it.name.contains(q, true) || (it.artist?.contains(q, true) == true) }
-                    trackAdapter.updateTracks(filtered.toMutableList())
+        val dialogView = layoutInflater.inflate(R.layout.dialog_search, null)
+        val searchEditText = dialogView.findViewById<EditText>(R.id.searchEditText)
+        val btnSearchCancel = dialogView.findViewById<Button>(R.id.btnSearchCancel)
+        val btnSearchConfirm = dialogView.findViewById<Button>(R.id.btnSearchConfirm)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        // Установка серого фона для диалога
+        setupDialogGradient(dialog)
+
+        btnSearchCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnSearchConfirm.setOnClickListener {
+            val query = searchEditText.text.toString().trim()
+            if (query.isEmpty()) {
+                loadAlbumTracks() // или loadArtistTracks(), loadGenreTracks() в зависимости от активности
+                trackAdapter.updateTracks(albumTracks) // или artistTracks, genreTracks
+            } else {
+                val filtered = albumTracks.filter {
+                    it.name.contains(query, true) ||
+                            (it.artist?.contains(query, true) == true)
                 }
-                updateStats()
+                trackAdapter.updateTracks(filtered.toMutableList())
             }
-            .setNegativeButton("Отмена", null)
-            .show()
+            updateStats()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+
+        // Настройка размера окна
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            android.view.WindowManager.LayoutParams.WRAP_CONTENT
+        )
+
+        dialog.window?.let { ThemeManager.enableImmersive(it) }
     }
 }

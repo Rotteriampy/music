@@ -1,157 +1,262 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="300dp"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@android:color/black">
+    android:background="@drawable/dialog_background"
+    android:padding="0dp">
 
-    <!-- Заголовок -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Сортировка"
-        android:textColor="@android:color/white"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Тип сортировки -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Тип сортировки:"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
-
-    <RadioGroup
-        android:id="@+id/sortTypeGroup"
+    <!-- Основной контент с серым фоном -->
+    <LinearLayout
+        android:id="@+id/dialogContentLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="16dp">
+        android:background="@drawable/dialog_background"
+        android:padding="20dp">
 
-        <RadioButton
-            android:id="@+id/sortByDate"
+        <!-- Заголовок -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="По дате добавления"
-            android:textColor="@android:color/white" />
+            android:text="Сортировка"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
 
-        <RadioButton
-            android:id="@+id/sortByName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="По имени"
-            android:textColor="@android:color/white" />
-
-        <RadioButton
-            android:id="@+id/sortByArtist"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="По артисту"
-            android:textColor="@android:color/white" />
-
-        <RadioButton
-            android:id="@+id/sortByDuration"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="По продолжительности"
-            android:textColor="@android:color/white" />
-
-        <RadioButton
-            android:id="@+id/sortByPlays"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="По прослушиваниям"
-            android:textColor="@android:color/white" />
-
-    </RadioGroup>
-
-    <!-- Направление сортировки -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Направление:"
-        android:textColor="@android:color/white"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
-
-    <!-- Ползунок с стрелками -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingVertical="8dp">
-
-        <!-- Стрелка вверх (по возрастанию) -->
-        <ImageButton
-            android:id="@+id/btnSortAsc"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_arrow_up"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="По возрастанию"
-            android:layout_marginEnd="8dp" />
-
-        <!-- "Ползунок" - визуальный индикатор -->
+        <!-- Тип сортировки -->
         <LinearLayout
-            android:layout_width="120dp"
-            android:layout_height="40dp"
-            android:orientation="horizontal"
-            android:background="@drawable/sort_slider_bg"
-            android:gravity="center">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background_light"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
 
             <TextView
-                android:id="@+id/sortDirectionText"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="↑"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:text="ТИП СОРТИРОВКИ"
+                android:textColor="#CCCCCC"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1"
+                android:layout_marginBottom="12dp" />
+
+            <RadioGroup
+                android:id="@+id/sortTypeGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <RadioButton
+                    android:id="@+id/sortByDate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="По дате добавления"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="@color/accent_color"
+                    android:paddingVertical="12dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#333333"
+                    android:layout_marginHorizontal="4dp" />
+
+                <RadioButton
+                    android:id="@+id/sortByName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="По названию"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="@color/accent_color"
+                    android:paddingVertical="12dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#333333"
+                    android:layout_marginHorizontal="4dp" />
+
+                <RadioButton
+                    android:id="@+id/sortByArtist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="По исполнителю"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="@color/accent_color"
+                    android:paddingVertical="12dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#333333"
+                    android:layout_marginHorizontal="4dp" />
+
+                <RadioButton
+                    android:id="@+id/sortByDuration"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="По длительности"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="@color/accent_color"
+                    android:paddingVertical="12dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#333333"
+                    android:layout_marginHorizontal="4dp" />
+
+                <RadioButton
+                    android:id="@+id/sortByPlays"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="По прослушиваниям"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="@color/accent_color"
+                    android:paddingVertical="12dp" />
+
+            </RadioGroup>
 
         </LinearLayout>
 
-        <!-- Стрелка вниз (по убыванию) -->
-        <ImageButton
-            android:id="@+id/btnSortDesc"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_arrow_down"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="По убыванию"
-            android:layout_marginStart="8dp" />
-
-    </LinearLayout>
-
-    <!-- Кнопки действий -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="16dp">
-
-        <Button
-            android:id="@+id/btnApplySort"
-            android:layout_width="0dp"
+        <!-- Направление сортировки -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Применить"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="@color/accent_color" />
+            android:orientation="vertical"
+            android:background="@drawable/card_background_light"
+            android:padding="16dp"
+            android:layout_marginBottom="20dp">
 
-        <Button
-            android:id="@+id/btnCancelSort"
-            android:layout_width="0dp"
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="НАПРАВЛЕНИЕ"
+                android:textColor="#CCCCCC"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Интерактивный ползунок -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- По возрастанию -->
+                <LinearLayout
+                    android:id="@+id/sortAscContainer"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageButton
+                        android:id="@+id/btnSortAsc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_arrow_up"
+                        android:background="@null"
+                        android:tint="@android:color/white"
+                        android:contentDescription="По возрастанию" />
+
+                </LinearLayout>
+
+                <!-- Визуальный разделитель с индикатором -->
+                <RelativeLayout
+                    android:layout_width="80dp"
+                    android:layout_height="48dp"
+                    android:gravity="center">
+
+                    <!-- Фон ползунка -->
+                    <View
+                        android:layout_width="60dp"
+                        android:layout_height="4dp"
+                        android:background="#D3D3D3"
+                        android:layout_centerInParent="true" />
+
+                    <!-- Подвижный индикатор -->
+                    <View
+                        android:id="@+id/sortDirectionIndicator"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:background="@drawable/sort_indicator"
+                        android:layout_centerInParent="true" />
+
+                </RelativeLayout>
+
+                <!-- По убыванию -->
+                <LinearLayout
+                    android:id="@+id/sortDescContainer"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="12dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageButton
+                        android:id="@+id/btnSortDesc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_arrow_down"
+                        android:background="@null"
+                        android:tint="@android:color/white"
+                        android:contentDescription="По убыванию" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Кнопки действий -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Отмена"
-            android:layout_marginStart="8dp" />
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnCancelSort"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="Отмена"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#33FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnApplySort"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="Применить"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#664CAF50"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

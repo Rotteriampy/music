@@ -2,7 +2,8 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/white">
+    android:padding="8dp"
+    android:background="@drawable/dialog_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -10,104 +11,338 @@
         android:orientation="vertical"
         android:padding="20dp">
 
+        <!-- Заголовок -->
         <TextView
             android:id="@+id/tvInfoTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="Название трека"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="16dp"/>
+            android:gravity="center"
+            android:textColor="@android:color/white"
+            android:paddingBottom="12dp" />
 
+        <!-- Разделитель -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33FFFFFF"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Секция: Основная информация -->
         <TextView
-            android:id="@+id/tvInfoArtist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:text="Основная информация"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#CCFFFFFF"
+            android:paddingBottom="8dp" />
 
-        <TextView
-            android:id="@+id/tvInfoAlbum"
+        <!-- Исполнитель -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
-        <TextView
-            android:id="@+id/tvInfoGenre"
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_artist"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoArtist"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Исполнитель: Unknown"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Альбом -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
-        <TextView
-            android:id="@+id/tvInfoDuration"
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_album"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoAlbum"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Альбом: Unknown"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Жанр -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
-        <TextView
-            android:id="@+id/tvInfoBitrate"
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_genre"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoGenre"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Жанр: Unknown"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Год -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_year"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoYear"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Год: Неизвестно"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Разделитель между секциями -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33FFFFFF"
+            android:layout_marginVertical="12dp" />
+
+        <!-- Секция: Аудиохарактеристики -->
         <TextView
-            android:id="@+id/tvInfoSampleRate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:text="Аудиохарактеристики"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#CCFFFFFF"
+            android:paddingBottom="8dp" />
 
-        <TextView
-            android:id="@+id/tvInfoFileSize"
+        <!-- Длительность -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
-        <TextView
-            android:id="@+id/tvInfoPath"
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_duration"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoDuration"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Длительность: 0:00"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Битрейт -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:textColor="#666666"
-            android:layout_marginBottom="8dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_bitrate"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoBitrate"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Битрейт: 0 kbps"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Разделитель между секциями -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33FFFFFF"
+            android:layout_marginVertical="12dp" />
+
+        <!-- Секция: Файл -->
         <TextView
-            android:id="@+id/tvInfoModified"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="8dp"/>
+            android:text="Файл"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#CCFFFFFF"
+            android:paddingBottom="8dp" />
 
-        <TextView
-            android:id="@+id/tvInfoPlayCount"
+        <!-- Размер файла -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="16dp"/>
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
 
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_file_size"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoFileSize"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Размер: 0 МБ"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Дата изменения -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_date"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoModified"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Изменён: "
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Путь -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_path"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoPath"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Путь: "
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:textIsSelectable="true" />
+        </LinearLayout>
+
+        <!-- Разделитель между секциями -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#33FFFFFF"
+            android:layout_marginVertical="12dp" />
+
+        <!-- Секция: Статистика -->
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Статистика"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#CCFFFFFF"
+            android:paddingBottom="8dp" />
+
+        <!-- Количество прослушиваний -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="6dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_play_count"
+                android:layout_marginEnd="16dp"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvInfoPlayCount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Прослушиваний: 0"
+                android:textSize="14sp"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- Кнопка закрытия -->
+        <Button
             android:id="@+id/btnCloseInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Закрыть"
             android:textSize="16sp"
+            android:background="?android:attr/selectableItemBackground"
             android:textColor="@android:color/white"
-            android:background="#2196F3"
-            android:gravity="center"
-            android:padding="12dp"/>
+            android:textAllCaps="false" />
+
     </LinearLayout>
+
 </ScrollView>

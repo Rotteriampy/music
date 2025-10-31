@@ -1,6 +1,8 @@
 package com.example.music
 
 import android.os.Bundle
+import android.os.Build
+import android.view.View
 import android.content.Intent
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -51,10 +53,22 @@ class StatsActivity : AppCompatActivity() {
             true
         }
 
+        fun getStatusBarHeight(): Int {
+            val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
+            return if (resId > 0) resources.getDimensionPixelSize(resId) else 0
+        }
+
         spMode = findViewById(R.id.spMode)
         rgPeriod = findViewById(R.id.rgPeriod)
 
         restoreColor()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val secondary = ThemeManager.getSecondaryColor(this)
+            val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
+            ThemeManager.applyTransparentStatusBarWithBackground(window, darkIcons, this)
+            ThemeManager.showSystemBars(window, this)
+        }
 
         back.setOnClickListener { finish() }
 
@@ -63,27 +77,77 @@ class StatsActivity : AppCompatActivity() {
         refresh()
     }
 
+    override fun onResume() {
+        super.onResume()
+        ThemeManager.applyTransparentStatusBarWithBackground(window, androidx.core.graphics.ColorUtils.calculateLuminance(ThemeManager.getSecondaryColor(this)) > 0.5, this)
+        ThemeManager.showSystemBars(window, this)
+    }
+
     private fun restoreColor() {
-        val sharedPreferences = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val scheme = sharedPreferences.getInt("color_scheme", 0)
-        val color = when (scheme) {
-            1 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.darker_gray))
-            2 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-            3 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
+        val primary = ThemeManager.getPrimaryColor(this)
+        val secondary = ThemeManager.getSecondaryColor(this)
+        val accent = ThemeManager.getAccentColor(this)
+        val gradStart = ThemeManager.getPrimaryGradientStart(this)
+        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
+
+        // Градиентный фон экрана статистики
+        val bg = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            intArrayOf(gradStart, gradEnd)
+        )
+        root.background = bg
+
+        // Заголовок и кнопка назад
+        findViewById<TextView>(R.id.statsTitle).setTextColor(secondary)
+        back.setColorFilter(secondary)
+
+        // Радио-кнопки периода и их текст
+        listOf<RadioButton>(
+            findViewById(R.id.rbDays),
+            findViewById(R.id.rbWeeks),
+            findViewById(R.id.rbMonths)
+        ).forEach { rb ->
+            rb.setTextColor(secondary)
+            rb.buttonTintList = android.content.res.ColorStateList.valueOf(secondary)
         }
-        root.background = color
+
+        // Блок дополнительных данных — без отдельного фона, используем общий градиент
+        extraTitle.setTextColor(secondary)
+        extraValue.setTextColor(secondary)
+        findViewById<LinearLayout>(R.id.extraPanel).background = null
+
+        // Обновим цвета графика
+        applyChartColors(secondary)
+    }
+
+    private fun applyChartColors(color: Int) {
+        // Используем явные сеттеры/прямой доступ, чтобы избежать конфликта имён
+        chart.legend.textColor = color
+        chart.axisLeft.textColor = color
+        chart.xAxis.textColor = color
+        chart.setNoDataTextColor(color)
+    }
+
+    private fun lighten(color: Int, factor: Float): Int {
+        val a = (color ushr 24) and 0xFF
+        val r = (color ushr 16) and 0xFF
+        val g = (color ushr 8) and 0xFF
+        val b = color and 0xFF
+        val nr = (r + ((255 - r) * factor)).toInt().coerceIn(0, 255)
+        val ng = (g + ((255 - g) * factor)).toInt().coerceIn(0, 255)
+        val nb = (b + ((255 - b) * factor)).toInt().coerceIn(0, 255)
+        return (a shl 24) or (nr shl 16) or (ng shl 8) or nb
     }
 
     private fun initChart() {
         chart.description.isEnabled = false
         chart.legend.apply {
             form = Legend.LegendForm.LINE
-            textColor = ContextCompat.getColor(this@StatsActivity, android.R.color.white)
+            this.textColor = ThemeManager.getSecondaryColor(this@StatsActivity)
         }
-        chart.axisLeft.textColor = ContextCompat.getColor(this, android.R.color.white)
+        chart.axisLeft.textColor = ThemeManager.getSecondaryColor(this)
         chart.axisRight.isEnabled = false
-        chart.xAxis.textColor = ContextCompat.getColor(this, android.R.color.white)
+        chart.xAxis.textColor = ThemeManager.getSecondaryColor(this)
         // Целочисленные значения по осям
         chart.axisLeft.granularity = 1f
         chart.xAxis.granularity = 1f
@@ -98,7 +162,7 @@ class StatsActivity : AppCompatActivity() {
             }
         }
         chart.setNoDataText("Нет данных для выбранного периода")
-        chart.setNoDataTextColor(ContextCompat.getColor(this, android.R.color.white))
+        chart.setNoDataTextColor(ThemeManager.getSecondaryColor(this))
     }
 
     private fun initSelectors() {

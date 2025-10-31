@@ -16,6 +16,13 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import android.net.Uri
+import android.graphics.BitmapShader
+import android.graphics.Shader
+import android.graphics.Matrix
+import android.graphics.RectF
+import java.io.InputStream
+import kotlinx.coroutines.*
+import java.util.concurrent.ConcurrentHashMap
 
 class ArtistAdapter(
     private var artists: List<Artist>,
@@ -24,6 +31,7 @@ class ArtistAdapter(
 
     init {
         artists = reorderUnknownFirst(artists)
+        setHasStableIds(true)
     }
 
     class ArtistViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -37,6 +45,10 @@ class ArtistAdapter(
         return ArtistViewHolder(view)
     }
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val jobs = ConcurrentHashMap<ImageView, Job>()
+    private val infoCache = ConcurrentHashMap<String, String>()
+
     override fun onBindViewHolder(holder: ArtistViewHolder, position: Int) {
         val artist = artists[position]
 
@@ -48,30 +60,82 @@ class ArtistAdapter(
         // Показываем название (кастомное или оригинальное)
         holder.artistName.text = customName ?: artist.name
 
+        // Сбрасываем предыдущую загрузку и ставим плейсхолдер
+        jobs.remove(holder.coverImage)?.cancel()
+        val placeholder = R.drawable.ic_album_placeholder
+        holder.coverImage.setImageResource(placeholder)
+
         // Загружаем обложку
         if (artist.name.equals("Unknown", ignoreCase = true) || artist.name.equals("<unknown>", ignoreCase = true)) {
             holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
         } else if (customCoverUri != null) {
-            holder.coverImage.setImageURI(Uri.parse(customCoverUri))
+            val cacheKey = "artist_custom_uri_" + customCoverUri
+            holder.coverImage.tag = cacheKey
+            val job = ioScope.launch {
+                val roundedKey = cacheKey + "_r128"
+                var rounded = DiskImageCache.getBitmap(roundedKey)
+                if (rounded == null) {
+                    var bmp = DiskImageCache.getBitmap(cacheKey)
+                    if (bmp == null) {
+                        bmp = try {
+                            val uri = Uri.parse(customCoverUri)
+                            val input: InputStream? = context.contentResolver.openInputStream(uri)
+                            val decoded = input?.let { BitmapFactory.decodeStream(it) }
+                            input?.close()
+                            if (decoded != null) DiskImageCache.putBitmap(cacheKey, decoded)
+                            decoded
+                        } catch (_: Exception) { null }
+                    }
+                    if (bmp != null) {
+                        rounded = roundToViewFixed(bmp, holder.coverImage, 12f)
+                        DiskImageCache.putBitmap(roundedKey, rounded!!)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    if (holder.coverImage.tag == cacheKey && rounded != null) {
+                        holder.coverImage.setImageBitmap(rounded)
+                    }
+                }
+            }
+            jobs[holder.coverImage] = job
         } else {
             val prefs = context.getSharedPreferences("custom_artists", Context.MODE_PRIVATE)
             val cachedTrackPath = prefs.getString("artist_${artist.name}_cover_track", null)
             var set = false
-            if (cachedTrackPath != null) set = loadCover(cachedTrackPath, holder.coverImage)
+            if (cachedTrackPath != null) {
+                val key = "artist_cover_from_track_" + cachedTrackPath
+                holder.coverImage.tag = key
+                val job = ioScope.launch {
+                    val ok = loadCoverAsyncRounded(cachedTrackPath, holder.coverImage, key)
+                    if (ok) set = true
+                }
+                jobs[holder.coverImage] = job
+            }
 
             if (!set) {
-                for (t in artist.tracks) {
-                    val p = t.path ?: continue
-                    if (loadCover(p, holder.coverImage)) {
-                        prefs.edit().putString("artist_${artist.name}_cover_track", p).apply()
-                        set = true
-                        break
+                val firstWithPath = artist.tracks.firstOrNull { it.path != null }?.path
+                if (firstWithPath != null) {
+                    val key = "artist_cover_from_track_" + firstWithPath
+                    holder.coverImage.tag = key
+                    val job = ioScope.launch {
+                        val ok = loadCoverAsyncRounded(firstWithPath, holder.coverImage, key)
+                        if (ok) {
+                            prefs.edit().putString("artist_${artist.name}_cover_track", firstWithPath).apply()
+                        }
                     }
+                    jobs[holder.coverImage] = job
                 }
             }
             if (!set) {
                 val displayName = (customName ?: artist.name).trim()
-                holder.coverImage.setImageBitmap(generateLetterCover(displayName))
+                val letterKey = "artist_letter_${displayName}_r128"
+                var rounded = DiskImageCache.getBitmap(letterKey)
+                if (rounded == null) {
+                    val bmp = generateLetterCover(displayName)
+                    rounded = roundToViewFixed(bmp, holder.coverImage, 12f)
+                    DiskImageCache.putBitmap(letterKey, rounded)
+                }
+                holder.coverImage.setImageBitmap(rounded)
             }
         }
 
@@ -82,29 +146,45 @@ class ArtistAdapter(
             context.startActivity(intent)
         }
 
-        val trackCount = artist.tracks.size
-        val totalDurationMs = artist.tracks.mapNotNull { it.duration }.filter { it > 0 }.sum()
-        val totalMinutes = totalDurationMs / 1000 / 60
-        val totalSeconds = (totalDurationMs / 1000) % 60
-        holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
+        val info = infoCache.getOrPut(artist.name) {
+            val trackCount = artist.tracks.size
+            val totalDurationMs = artist.tracks.mapNotNull { it.duration }.filter { it > 0 }.sum()
+            val totalMinutes = totalDurationMs / 1000 / 60
+            val totalSeconds = (totalDurationMs / 1000) % 60
+            "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
+        }
+        holder.tracksInfo.text = info
     }
 
-    private fun loadCover(trackPath: String, imageView: ImageView): Boolean {
-        try {
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(trackPath)
-            val artBytes = retriever.embeddedPicture
-            if (artBytes != null) {
-                val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                imageView.setImageBitmap(bitmap)
-                retriever.release()
-                return true
+    private suspend fun loadCoverAsyncRounded(trackPath: String, imageView: ImageView, cacheKey: String): Boolean {
+        val roundedKey = cacheKey + "_r128"
+        var rounded = DiskImageCache.getBitmap(roundedKey)
+        if (rounded == null) {
+            var bmp = DiskImageCache.getBitmap(cacheKey)
+            if (bmp == null) {
+                try {
+                    val retriever = MediaMetadataRetriever()
+                    retriever.setDataSource(trackPath)
+                    val artBytes = retriever.embeddedPicture
+                    if (artBytes != null) {
+                        bmp = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                        if (bmp != null) DiskImageCache.putBitmap(cacheKey, bmp!!)
+                    }
+                    retriever.release()
+                } catch (_: Exception) {
+                }
             }
-            retriever.release()
-        } catch (e: Exception) {
-            // ignore
+            if (bmp != null) {
+                rounded = roundToViewFixed(bmp!!, imageView, 12f)
+                DiskImageCache.putBitmap(roundedKey, rounded!!)
+            }
         }
-        return false
+        return withContext(Dispatchers.Main) {
+            if (imageView.tag == cacheKey && rounded != null) {
+                imageView.setImageBitmap(rounded)
+                true
+            } else false
+        }
     }
 
     private fun generateLetterCover(name: String): Bitmap {
@@ -125,6 +205,35 @@ class ArtistAdapter(
         val y = (size + bounds.height()) / 2f - bounds.bottom
         canvas.drawText(letter, x, y, paint)
         return bmp
+    }
+
+    private fun roundToViewFixed(src: Bitmap, view: ImageView, radiusDp: Float): Bitmap {
+        val radiusPx = (radiusDp * view.resources.displayMetrics.density)
+        val sizePx = (128f * view.resources.displayMetrics.density).toInt()
+        val outW = sizePx
+        val outH = sizePx
+        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true }
+        val shader = BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val scale = maxOf(outW.toFloat() / src.width, outH.toFloat() / src.height)
+        val dx = (outW - src.width * scale) / 2f
+        val dy = (outH - src.height * scale) / 2f
+        val matrix = Matrix().apply { setScale(scale, scale); postTranslate(dx, dy) }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val rect = RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+        return out
+    }
+
+    override fun getItemId(position: Int): Long {
+        return artists[position].name.hashCode().toLong()
+    }
+
+    override fun onViewRecycled(holder: ArtistViewHolder) {
+        jobs.remove(holder.coverImage)?.cancel()
+        super.onViewRecycled(holder)
     }
 
     override fun getItemCount(): Int = artists.size

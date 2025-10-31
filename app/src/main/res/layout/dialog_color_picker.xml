@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/transparent">
+
+    <TextView
+        android:id="@+id/tvColorPickerTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Выберите цвет"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="12dp"
+        android:layout_marginStart="4dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/settings_section_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp">
+
+        <com.example.music.ColorWheelView
+            android:id="@+id/colorWheel"
+            android:layout_width="match_parent"
+            android:layout_height="280dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="12dp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/settings_item_background"
+            android:padding="8dp"
+            android:layout_gravity="center_horizontal">
+
+
+            <View
+                android:id="@+id/colorPreview"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@android:color/black" />
+
+            <EditText
+                android:id="@+id/etHexValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="#000000"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:hint="#AARRGGBB"
+                android:textColorHint="#80FFFFFF"
+                android:gravity="start"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:imeOptions="actionDone"
+                android:inputType="textNoSuggestions|textCapCharacters"
+                android:maxLength="9"
+                android:ems="6"
+                android:layout_marginEnd="8dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/btnCancel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Отмена"
+            android:textColor="@android:color/white"
+            android:background="@drawable/button_background_red"
+            android:layout_marginEnd="6dp"
+            android:backgroundTint="@null" />
+
+        <Button
+            android:id="@+id/btnOk"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="ОК"
+            android:textColor="@android:color/white"
+            android:background="@drawable/button_background_green"
+            android:backgroundTint="@null" />
+    </LinearLayout>
+
+</LinearLayout>

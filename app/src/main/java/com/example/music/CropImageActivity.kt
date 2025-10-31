@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
+import android.view.Window
 import android.widget.Button
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
@@ -72,6 +73,19 @@ class CropImageActivity : AppCompatActivity() {
                 finish()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val secondary = ThemeManager.getSecondaryColor(this)
+        val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
+        ThemeManager.applyTransparentStatusBarWithBackground(window, darkIcons, this)
+        ThemeManager.showSystemBars(window, this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) ThemeManager.showSystemBars(window, this)
     }
 }
 

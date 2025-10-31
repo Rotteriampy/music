@@ -10,7 +10,6 @@ import android.graphics.Color
 
 import android.provider.MediaStore
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -18,7 +17,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +26,7 @@ import java.io.InputStream
 import java.io.File
 import android.app.RecoverableSecurityException
 import android.os.Build
+import android.widget.LinearLayout
 
 class TrackAdapter(
     private var tracks: MutableList<Track>,
@@ -108,9 +107,10 @@ class TrackAdapter(
             }
 
             val currentPath = QueueManager.getCurrentTrack()?.path
-            if (MusicService.isPlaying && currentPath != null && currentPath == track.path) {
-                trackName.setTextColor(Color.parseColor("#FFA500"))
-                trackArtist.setTextColor(Color.parseColor("#FFA500"))
+            if (currentPath != null && currentPath == track.path) {
+                val accent = ThemeManager.getAccentColor(context)
+                trackName.setTextColor(accent)
+                trackArtist.setTextColor(accent)
             } else {
                 trackName.setTextColor(Color.WHITE)
                 trackArtist.setTextColor(Color.parseColor("#B0B0B0"))
@@ -133,9 +133,10 @@ class TrackAdapter(
             // Lightweight update: only (de)highlight current item, no cover reloads
             val track = tracks[position]
             val currentPath = QueueManager.getCurrentTrack()?.path
-            if (MusicService.isPlaying && currentPath != null && currentPath == track.path) {
-                holder.trackName.setTextColor(android.graphics.Color.parseColor("#FFA500"))
-                holder.trackArtist.setTextColor(android.graphics.Color.parseColor("#FFA500"))
+            if (currentPath != null && currentPath == track.path) {
+                val accent = ThemeManager.getAccentColor(holder.itemView.context)
+                holder.trackName.setTextColor(accent)
+                holder.trackArtist.setTextColor(accent)
             } else {
                 holder.trackName.setTextColor(android.graphics.Color.WHITE)
                 holder.trackArtist.setTextColor(android.graphics.Color.parseColor("#B0B0B0"))
@@ -152,20 +153,28 @@ class TrackAdapter(
             var bitmap: Bitmap? = null
             val idKey = track.id ?: track.path ?: return@launch
 
+            // RAM cache
             bitmapCache[idKey]?.let {
                 bitmap = it
             } ?: run {
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    track.path?.let { retriever.setDataSource(it) }
-                    val data = retriever.embeddedPicture
-                    if (data != null) {
-                        bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
-                        bitmapCache[idKey] = bitmap
+                // Disk cache first
+                bitmap = DiskImageCache.getBitmap(idKey)
+                if (bitmap == null) {
+                    try {
+                        val retriever = MediaMetadataRetriever()
+                        track.path?.let { retriever.setDataSource(it) }
+                        val data = retriever.embeddedPicture
+                        if (data != null) {
+                            bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+                            if (bitmap != null) {
+                                bitmapCache[idKey] = bitmap
+                                DiskImageCache.putBitmap(idKey, bitmap!!)
+                            }
+                        }
+                        retriever.release()
+                    } catch (e: Exception) {
+                        // ignore
                     }
-                    retriever.release()
-                } catch (e: Exception) {
-                    // пропускаем
                 }
             }
 
@@ -178,9 +187,12 @@ class TrackAdapter(
                 try {
                     inputStream = context.contentResolver.openInputStream(uri)
                     bitmap = inputStream?.let { BitmapFactory.decodeStream(it) }
-                    if (bitmap != null) bitmapCache[idKey] = bitmap
+                    if (bitmap != null) {
+                        bitmapCache[idKey] = bitmap
+                        DiskImageCache.putBitmap(idKey, bitmap!!)
+                    }
                 } catch (e: Exception) {
-                    // пропускаем
+                    // ignore
                 } finally {
                     inputStream?.close()
                 }
@@ -188,7 +200,7 @@ class TrackAdapter(
 
             withContext(Dispatchers.Main) {
                 if (bitmap != null) {
-                    imageView.setImageBitmap(bitmap)
+                    setRounded(imageView, bitmap!!, 12f)
                 } else {
                     imageView.setImageResource(R.drawable.ic_album_placeholder)
                 }
@@ -196,39 +208,108 @@ class TrackAdapter(
         }
     }
 
-    private fun showTrackOptions(track: Track, position: Int, context: Context) {
-        val options = mutableListOf(
-            "Добавить в избранное",
-            "Добавить в очередь",
-            "Информация о треке",
-            "Поделиться",
-            "Установить как рингтон",
-            "Добавить в плейлист",
-            "Редактировать теги",
-            "Удалить"
-        )
+    private fun setRounded(view: ImageView, bitmap: Bitmap, radiusDp: Float) {
+        val radiusPx = (radiusDp * view.resources.displayMetrics.density)
+        val outW = if (view.width > 0) view.width else (view.layoutParams?.width ?: 0).let { if (it > 0) it else (48 * view.resources.displayMetrics.density).toInt() }
+        val outH = if (view.height > 0) view.height else (view.layoutParams?.height ?: 0).let { if (it > 0) it else (48 * view.resources.displayMetrics.density).toInt() }
+        val out = android.graphics.Bitmap.createBitmap(outW, outH, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        val shader = android.graphics.BitmapShader(bitmap, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+        val scale = maxOf(outW.toFloat() / bitmap.width, outH.toFloat() / bitmap.height)
+        val dx = (outW - bitmap.width * scale) / 2f
+        val dy = (outH - bitmap.height * scale) / 2f
+        val matrix = android.graphics.Matrix().apply {
+            setScale(scale, scale)
+            postTranslate(dx, dy)
+        }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val rect = android.graphics.RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+        view.scaleType = ImageView.ScaleType.FIT_XY
+        view.setImageBitmap(out)
+    }
 
-        // Проверяем, есть ли трек в плейлисте Избранное
+    private fun showTrackOptions(track: Track, position: Int, context: Context) {
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_track_menu, null)
+        val dialog = AlertDialog.Builder(context)
+            .setView(dialogView)
+            .create()
+
+        // Настройка заголовка
+        val tvTitle = dialogView.findViewById<TextView>(R.id.tvMenuTitle)
+        tvTitle.text = track.name
+
+        // Проверяем, находится ли трек в избранном
         val favoritesPlaylist = PlaylistManager.getPlaylists().find { it.id == Playlist.FAVORITES_ID }
-        if (favoritesPlaylist?.tracks?.any { it.path == track.path } == true) {
-            options[0] = "Удалить из избранного"
+        val isFavorite = favoritesPlaylist?.tracks?.any { it.path == track.path } == true
+
+        // Иконки действий
+        val ivFavorite = dialogView.findViewById<ImageView>(R.id.ivFavorite)
+        val ivEdit = dialogView.findViewById<ImageView>(R.id.ivEdit)
+        val ivInfo = dialogView.findViewById<ImageView>(R.id.ivInfo)
+        val ivShare = dialogView.findViewById<ImageView>(R.id.ivShare)
+        val ivDelete = dialogView.findViewById<ImageView>(R.id.ivDelete)
+
+        // Обновляем иконку избранного
+        updateFavoriteIcon(ivFavorite, isFavorite)
+
+        // Обработчики кликов для иконок
+        ivFavorite.setOnClickListener {
+            toggleFavorite(track, context)
+            dialog.dismiss()
         }
 
-        AlertDialog.Builder(context)
-            .setTitle(track.name)
-            .setItems(options.toTypedArray()) { _, which ->
-                when (which) {
-                    0 -> toggleFavorite(track, context)
-                    1 -> addToQueue(track, context)
-                    2 -> showTrackInfo(track, context)
-                    3 -> shareTrack(track, context)
-                    4 -> setAsRingtone(track, context)
-                    5 -> showPlaylistDialog(track, context)
-                    6 -> showEditTagsDialog(track, position, context)
-                    7 -> confirmDelete(track, position, context)
-                }
-            }
-            .show()
+        ivEdit.setOnClickListener {
+            showEditTagsDialog(track, position, context)
+            dialog.dismiss()
+        }
+
+        ivInfo.setOnClickListener {
+            showTrackInfo(track, context)
+            dialog.dismiss()
+        }
+
+        ivShare.setOnClickListener {
+            shareTrack(track, context)
+            dialog.dismiss()
+        }
+
+        ivDelete.setOnClickListener {
+            confirmDelete(track, position, context)
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvAddToQueue).setOnClickListener {
+            addToQueue(track, context)
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvAddToPlaylist).setOnClickListener {
+            showPlaylistDialog(track, context)
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvSetAsRingtone).setOnClickListener {
+            setAsRingtone(track, context)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+    }
+
+    private fun updateFavoriteIcon(imageView: ImageView, isFavorite: Boolean) {
+        if (isFavorite) {
+            // Красная залитая иконка сердца
+            imageView.setImageResource(R.drawable.ic_favorite_filled)
+            imageView.setColorFilter(Color.RED)
+        } else {
+            // Белая незалитая иконка сердца
+            imageView.setImageResource(R.drawable.ic_favorite_border)
+            imageView.setColorFilter(Color.WHITE)
+        }
     }
 
     private fun toggleFavorite(track: Track, context: Context) {

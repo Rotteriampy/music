@@ -1,52 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/settingsLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@android:color/black">
+    android:padding="16dp">
 
-    <LinearLayout
-        android:id="@+id/gradientPreview"
-        android:layout_width="match_parent"
-        android:layout_height="10dp"
-        android:layout_marginBottom="16dp"
-        android:background="@android:color/black"
-        android:orientation="vertical" />
-
+    <!-- Заголовок Настройки -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Статистика прослушиваний"
-        android:textSize="18sp"
+        android:text="Настройки"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="@android:color/white"
-        android:layout_marginBottom="8dp" />
-    <Button
-        android:id="@+id/exportStatsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Экспортировать статистику"
-        android:layout_marginTop="8dp" />
-    <Button
-        android:id="@+id/importStatsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Импортировать статистику"
-        android:layout_marginTop="8dp" />
-    <Button
-        android:id="@+id/clearStatsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Очистить статистику"
-        android:textColor="@android:color/holo_red_light"
-        android:layout_marginTop="8dp" />
+        android:layout_marginBottom="24dp"
+        android:layout_marginStart="8dp" />
 
+    <LinearLayout
+        android:id="@+id/themeSettingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/settings_item_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_palette"
+            android:tint="@android:color/white"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Настройки темы"
+            android:textSize="16sp"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/statsSettingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/settings_item_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_stats"
+            android:tint="@android:color/white"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Управление статистикой"
+            android:textSize="16sp"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
+
+    <!-- Кнопка Назад с полупрозрачным серым фоном и ярким контуром -->
     <Button
         android:id="@+id/btnBack"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Назад"
-        android:layout_marginTop="80dp" />
+        android:layout_marginTop="80dp"
+        android:background="@drawable/card_background_light2"
+        android:textColor="@android:color/white"
+        android:textStyle="bold" />
 
 </LinearLayout>

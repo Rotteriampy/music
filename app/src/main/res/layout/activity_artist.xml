@@ -22,41 +22,34 @@
             android:contentDescription="Назад"
             android:tint="@android:color/white" />
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
+        <!-- Название -->
+        <TextView
+            android:id="@+id/artistNameText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:gravity="center"
             android:layout_weight="1" />
 
         <ImageButton
             android:id="@+id/btnArtistMore"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_more"
+            android:src="@drawable/ic_edit"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:tint="@android:color/white" />
     </LinearLayout>
 
-    <!-- Обложка -->
-    <ImageView
-        android:id="@+id/artistCoverImage"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp"
-        android:src="@drawable/ic_album_placeholder"
-        android:contentDescription="Обложка исполнителя" />
-
-    <!-- Название -->
-    <TextView
-        android:id="@+id/artistNameText"
+    <!-- РАЗДЕЛИТЕЛЬ -->
+    <View
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@android:color/white"
-        android:gravity="center"
+        android:layout_height="1dp"
         android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="12dp"
+        android:background="@android:color/white"
+        android:alpha="0.2" />
 
     <!-- Статистика слева, сортировка и порядок справа -->
     <LinearLayout
@@ -74,6 +67,15 @@
             android:text="0 треков • 0:00"
             android:textColor="@android:color/white"
             android:alpha="0.8" />
+
+        <ImageButton
+            android:id="@+id/btnSearch"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_search"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@android:color/white"
+            android:layout_marginEnd="8dp"/>
 
         <ImageButton
             android:id="@+id/btnSortArtist"
@@ -105,8 +107,8 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:src="@drawable/ic_play"
-            android:background="@drawable/rounded_rect_accent_background"
+            android:src="@drawable/ic_play_count_b"
+            android:background="@drawable/rounded_rect_gray_background"
             android:contentDescription="Воспроизвести исполнителя"
             android:scaleType="centerInside"
             android:layout_marginEnd="8dp" />
@@ -117,7 +119,7 @@
             android:layout_height="48dp"
             android:layout_weight="1"
             android:src="@drawable/ic_shuffle"
-            android:background="@drawable/rounded_rect_accent_background"
+            android:background="@drawable/rounded_rect_gray_background"
             android:contentDescription="Перемешать и воспроизвести"
             android:scaleType="centerInside" />
     </LinearLayout>

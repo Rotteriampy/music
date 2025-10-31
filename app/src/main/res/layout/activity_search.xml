@@ -20,24 +20,52 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@drawable/ic_back_triangle"
-            android:background="@null"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Назад"
             android:tint="@android:color/white"
             android:layout_marginEnd="8dp" />
 
-        <EditText
-            android:id="@+id/searchEditText"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:hint="Поиск..."
-            android:textColorHint="#888888"
-            android:textColor="@android:color/black"
-            android:background="@android:color/white"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:singleLine="true"
-            android:imeOptions="actionSearch" />
+            android:background="@drawable/search_field_background"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_search"
+                android:tint="#888888"
+                android:layout_marginEnd="12dp" />
+
+            <EditText
+                android:id="@+id/searchEditText"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:hint="Поиск треков, альбомов, исполнителей..."
+                android:textColorHint="#888888"
+                android:textColor="@android:color/white"
+                android:background="@android:color/transparent"
+                android:singleLine="true"
+                android:imeOptions="actionSearch"
+                android:maxLines="1" />
+
+            <ImageButton
+                android:id="@+id/btnClearSearch"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_close"
+                android:tint="#888888"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:visibility="gone"
+                android:contentDescription="Очистить" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
@@ -109,6 +137,14 @@
         android:layout_height="1dp"
         android:background="#333333"
         android:layout_marginBottom="8dp" />
+
+    <!-- Прогресс-бар -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
     <!-- Результаты поиска -->
     <androidx.recyclerview.widget.RecyclerView

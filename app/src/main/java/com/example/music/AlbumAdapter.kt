@@ -16,6 +16,11 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import android.graphics.BitmapShader
+import android.graphics.Matrix
+import android.graphics.RectF
+import android.graphics.Shader
+import java.io.InputStream
 
 class AlbumAdapter(
     private var albums: List<Album>,
@@ -52,7 +57,25 @@ class AlbumAdapter(
         if (customName?.equals("<unknown>", ignoreCase = true) == true) {
             holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
         } else if (customCoverUri != null) {
-            holder.albumCover.setImageURI(Uri.parse(customCoverUri))
+            // Загружаем bitmap по URI и скругляем
+            try {
+                val cacheKey = "album_custom_uri_" + customCoverUri
+                val cached = DiskImageCache.getBitmap(cacheKey)
+                if (cached != null) {
+                    holder.albumCover.setImageBitmap(roundToView(holder.albumCover, cached, 12f))
+                } else {
+                    val uri = Uri.parse(customCoverUri)
+                    val input: InputStream? = context.contentResolver.openInputStream(uri)
+                    val bmp = BitmapFactory.decodeStream(input)
+                    if (bmp != null) {
+                        DiskImageCache.putBitmap(cacheKey, bmp)
+                        holder.albumCover.setImageBitmap(roundToView(holder.albumCover, bmp, 12f))
+                    }
+                    input?.close()
+                }
+            } catch (_: Exception) {
+                holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
+            }
         } else {
             // Сперва используем кэш пути трека с обложкой (если уже определяли ранее)
             val cachedTrackPath = prefs.getString("album_${album.name}_cover_track", null)
@@ -77,7 +100,7 @@ class AlbumAdapter(
                 if (name.equals("Unknown", ignoreCase = true) || name.equals("<unknown>", ignoreCase = true)) {
                     holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
                 } else {
-                    holder.albumCover.setImageBitmap(generateLetterCover(name))
+                    holder.albumCover.setImageBitmap(roundToView(holder.albumCover, generateLetterCover(name), 12f))
                 }
             }
         }
@@ -98,13 +121,19 @@ class AlbumAdapter(
     }
 
     private fun loadAlbumCover(trackPath: String, imageView: ImageView): Boolean {
+        val cacheKey = "album_cover_from_track_" + trackPath
+        DiskImageCache.getBitmap(cacheKey)?.let { cached ->
+            imageView.setImageBitmap(roundToView(imageView, cached, 12f))
+            return true
+        }
         try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(trackPath)
             val artBytes = retriever.embeddedPicture
             if (artBytes != null) {
                 val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                imageView.setImageBitmap(bitmap)
+                if (bitmap != null) DiskImageCache.putBitmap(cacheKey, bitmap)
+                imageView.setImageBitmap(roundToView(imageView, bitmap, 12f))
                 retriever.release()
                 return true
             }
@@ -134,6 +163,46 @@ class AlbumAdapter(
         canvas.drawText(letter, x, y, paint)
         return bmp
     }
+
+    /**
+     * Обрезает и скругляет Bitmap до фиксированного квадратного размера (128dp),
+     * используя логику CenterCrop. Это устраняет дергания при прокрутке.
+     */
+    private fun roundToView(view: ImageView, src: Bitmap, radiusDp: Float): Bitmap {
+        val radiusPx = (radiusDp * view.resources.displayMetrics.density)
+
+        // ИСПРАВЛЕНИЕ: Используем фиксированный квадратный размер (128dp)
+        val sizeDp = 128f
+        val sizePx = (sizeDp * view.resources.displayMetrics.density).toInt()
+        val outW = sizePx
+        val outH = sizePx
+
+        val out = Bitmap.createBitmap(outW, outH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true; isDither = true }
+        val shader = BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+
+        // Матрица для масштабирования и центрирования (CenterCrop-логика)
+        val scale: Float
+        val dx: Float
+        val dy: Float
+
+        // Масштабируем так, чтобы заполнить квадрат
+        scale = maxOf(outW.toFloat() / src.width, outH.toFloat() / src.height)
+
+        // Центрируем
+        dx = (outW - src.width * scale) * 0.5f
+        dy = (outH - src.height * scale) * 0.5f
+
+        val matrix = Matrix().apply { setScale(scale, scale); postTranslate(dx, dy) }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val rect = RectF(0f, 0f, outW.toFloat(), outH.toFloat())
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+        return out
+    }
+
+
 
     override fun getItemCount(): Int = albums.size
 

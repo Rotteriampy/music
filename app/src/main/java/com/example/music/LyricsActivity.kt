@@ -56,6 +56,19 @@ class LyricsActivity : AppCompatActivity() {
         btnBack.setOnClickListener { finish() }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val secondary = ThemeManager.getSecondaryColor(this)
+        val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
+        ThemeManager.applyTransparentStatusBarWithBackground(window, darkIcons, this)
+        ThemeManager.showSystemBars(window, this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) ThemeManager.showSystemBars(window, this)
+    }
+
     private fun prefs() = getSharedPreferences("lyrics_store", MODE_PRIVATE)
 
     private fun key(): String = "lyrics_" + (trackPath ?: "unknown")

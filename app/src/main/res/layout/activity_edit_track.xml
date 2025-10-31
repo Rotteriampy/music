@@ -2,10 +2,11 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="@android:color/transparent">
 
     <LinearLayout
+        android:id="@+id/mainLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -17,6 +18,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
+            android:layout_marginTop="10dp"
             android:layout_marginBottom="24dp">
 
             <ImageButton
@@ -40,119 +42,354 @@
 
         </LinearLayout>
 
-        <!-- Обложка -->
-        <ImageView
-            android:id="@+id/coverImageView"
-            android:layout_width="180dp"
-            android:layout_height="180dp"
+        <!-- Секция обложки -->
+        <LinearLayout
+            android:layout_width="175dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
             android:layout_gravity="center"
+            android:padding="16dp">
+
+            <!-- Контейнер для обложки с иконкой редактирования -->
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center">
+
+                <ImageView
+                    android:id="@+id/coverImageView"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_album_placeholder"
+                    android:background="@drawable/rounded_corners" />
+
+                <!-- Иконка редактирования поверх обложки -->
+                <ImageView
+                    android:id="@+id/editCoverIcon"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:src="@drawable/ic_edit"
+                    android:padding="8dp"
+                    android:layout_centerInParent="true" />
+
+            </RelativeLayout>
+
+        </LinearLayout>
+
+        <!-- Мини-плеер предпросмотра -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Предпросмотр"
+                android:textColor="#CCCCCC"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:id="@+id/previewCover"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_album_placeholder"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/rounded_image_background" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/previewTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Название трека"
+                        android:textColor="@android:color/white"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/previewArtist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Исполнитель"
+                        android:textColor="#B0B0B0"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/previewAlbum"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Альбом"
+                        android:textColor="#B0B0B0"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Поля редактирования с иконками -->
+        <!-- Название -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_album_placeholder" />
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <Button
-            android:id="@+id/btnSelectCover"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginBottom="20dp"
-            android:backgroundTint="@color/accent_color"
-            android:text="Выбрать обложку"
-            android:textColor="@android:color/white" />
+            <!-- Заголовок с иконкой -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-        <!-- Поля редактирования -->
-        <TextView
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_title"
+                    android:tint="#CCCCCC"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Название трека"
+                    android:textColor="#CCCCCC"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Поле ввода -->
+            <EditText
+                android:id="@+id/editTrackName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edit_text_background"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:hint="Введите название"
+                android:textColorHint="#B0B0B0"
+                android:singleLine="true" />
+
+        </LinearLayout>
+
+        <!-- Исполнитель -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Название"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:layout_marginBottom="6dp" />
-
-        <EditText
-            android:id="@+id/editTrackName"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="@android:color/white"
-            android:textColor="@android:color/black"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:hint="Название трека"
-            android:textColorHint="#888888"
             android:layout_marginBottom="12dp"
-            android:singleLine="true" />
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
+            <!-- Заголовок с иконкой -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_artist"
+                    android:tint="#CCCCCC"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Исполнитель"
+                    android:textColor="#CCCCCC"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Поле ввода -->
+            <EditText
+                android:id="@+id/editTrackArtist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edit_text_background"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:hint="Введите исполнителя"
+                android:textColorHint="#B0B0B0"
+                android:singleLine="true" />
+
+        </LinearLayout>
+
+        <!-- Альбом -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Исполнитель"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:layout_marginBottom="6dp" />
-
-        <EditText
-            android:id="@+id/editTrackArtist"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="@android:color/white"
-            android:textColor="@android:color/black"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:hint="Исполнитель"
-            android:textColorHint="#888888"
             android:layout_marginBottom="12dp"
-            android:singleLine="true" />
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
+            <!-- Заголовок с иконкой -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_album"
+                    android:tint="#CCCCCC"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Альбом"
+                    android:textColor="#CCCCCC"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Поле ввода -->
+            <EditText
+                android:id="@+id/editTrackAlbum"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edit_text_background"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:hint="Введите альбом"
+                android:textColorHint="#B0B0B0"
+                android:singleLine="true" />
+
+        </LinearLayout>
+
+        <!-- Жанр -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Альбом"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:layout_marginBottom="6dp" />
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/card_background"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <EditText
-            android:id="@+id/editTrackAlbum"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="@android:color/white"
-            android:textColor="@android:color/black"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:hint="Альбом"
-            android:textColorHint="#888888"
-            android:layout_marginBottom="12dp"
-            android:singleLine="true" />
+            <!-- Заголовок с иконкой -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-        <TextView
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_genre"
+                    android:tint="#CCCCCC"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Жанр"
+                    android:textColor="#CCCCCC"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- Поле ввода -->
+            <EditText
+                android:id="@+id/editTrackGenre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edit_text_background"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:padding="12dp"
+                android:hint="Введите жанр"
+                android:textColorHint="#B0B0B0"
+                android:singleLine="true" />
+
+        </LinearLayout>
+
+        <!-- Панель быстрых действий -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Жанр"
-            android:textColor="@android:color/white"
-            android:textSize="14sp"
-            android:layout_marginBottom="6dp" />
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp"
+            android:gravity="center">
 
-        <EditText
-            android:id="@+id/editTrackGenre"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="@android:color/white"
-            android:textColor="@android:color/black"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:hint="Жанр"
-            android:textColorHint="#888888"
-            android:layout_marginBottom="20dp"
-            android:singleLine="true" />
+            <!-- Кнопка сброса - полупрозрачный красный -->
+            <Button
+                android:id="@+id/btnReset"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Сбросить"
+                android:backgroundTint="#33FF5252"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
 
-        <!-- Кнопка сохранения -->
+            <!-- Кнопка "на все треки" - полупрозрачный синий -->
+            <Button
+                android:id="@+id/btnApplyToAll"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Ко всем трекам"
+                android:backgroundTint="#334299F6"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+        <!-- Кнопка сохранения - полупрозрачный зеленый -->
         <Button
             android:id="@+id/btnSaveTags"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:text="Сохранить"
             android:textColor="@android:color/white"
-            android:backgroundTint="@color/accent_color"
+            android:backgroundTint="#664CAF50"
             android:textSize="16sp"
             android:textStyle="bold" />
 

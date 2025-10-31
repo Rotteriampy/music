@@ -1,56 +1,70 @@
 package com.example.music
 
+import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.MediaStore
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.ContextThemeWrapper
+import android.graphics.Color
 import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.HorizontalScrollView
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import android.Manifest
-import android.graphics.drawable.ColorDrawable
-import androidx.appcompat.app.AlertDialog
-import android.widget.EditText
-import androidx.activity.result.contract.ActivityResultContracts
-import android.net.Uri
-import java.io.File
-import android.text.Editable
-import android.text.TextWatcher
-import android.widget.Button
-import android.widget.RadioGroup
+import androidx.core.graphics.ColorUtils
+import androidx.activity.result.ActivityResultLauncher
+import android.animation.ObjectAnimator
+import android.view.animation.LinearInterpolator
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.DefaultItemAnimator
-import android.content.BroadcastReceiver
-import android.content.ComponentName
-import android.content.Context
-import android.content.IntentFilter
-import android.content.ServiceConnection
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
-import android.os.IBinder
-import android.widget.ImageView
-import android.view.ContextThemeWrapper
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import android.widget.ProgressBar
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import android.widget.RelativeLayout
+import android.view.LayoutInflater
+import android.widget.PopupWindow
+import android.view.ViewGroup
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var mainLayout: LinearLayout
+    private lateinit var tabsScrollView: HorizontalScrollView
     private lateinit var tabTracks: LinearLayout
     private lateinit var tabPlaylists: LinearLayout
     private lateinit var tabAlbums: LinearLayout
@@ -77,6 +91,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnReorderPlaylists: ImageButton
 
     private lateinit var trackAdapter: TrackAdapter
+    private lateinit var createPlaylistGalleryLauncher: ActivityResultLauncher<String>
+    private lateinit var createPlaylistCropLauncher: ActivityResultLauncher<Intent>
     private var lastHighlightedPath: String? = null
 
     private lateinit var btnReorderAlbums: ImageButton
@@ -99,6 +115,7 @@ class MainActivity : AppCompatActivity() {
     private var isAlbumReorderMode = false
     private var isArtistReorderMode = false
     private var isGenreReorderMode = false
+    private var currentDialog: AlertDialog? = null
 
     private var itemTouchHelperAlbums: ItemTouchHelper? = null
     private var itemTouchHelperArtists: ItemTouchHelper? = null
@@ -123,6 +140,13 @@ class MainActivity : AppCompatActivity() {
     private var itemTouchHelper: ItemTouchHelper? = null
     private var isPlaylistReorderMode = false
     private var allPlaylists: List<Playlist> = listOf()
+    private var mainBaseTopPadding: Int = -1
+    private var avatarSpin: ObjectAnimator? = null
+    private var areTracksLoaded = false
+    private var arePlaylistsLoaded = false
+    private var areAlbumsLoaded = false
+    private var areArtistsLoaded = false
+    private var areGenresLoaded = false
 
     private val REQUEST_CODE_PERMISSION = 123
     private val REQUEST_CODE_IMAGE_PERMISSION = 124
@@ -167,6 +191,10 @@ class MainActivity : AppCompatActivity() {
                 "com.example.music.STATS_UPDATED" -> {
                     trackAdapter.notifyDataSetChanged()
                 }
+                ThemeManager.ACTION_THEME_CHANGED -> {
+                    restoreColor()
+                    reapplyBarsFromBackground()
+                }
             }
         }
     }
@@ -185,13 +213,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Switch from SplashTheme to the normal app theme before inflating content
+        setTheme(R.style.Theme_Music)
         setContentView(R.layout.activity_main)
+        DiskImageCache.init(this)
         ListeningStats.loadStats(this)
         FavoritesManager.loadFavorites(this)
 
         mainLayout = findViewById(R.id.mainLayout)
+        tabsScrollView = findViewById(R.id.tabsScrollView)
         tabTracks = findViewById(R.id.tabTracks)
         tabPlaylists = findViewById(R.id.tabPlaylists)
         tabAlbums = findViewById(R.id.tabAlbums)
@@ -231,6 +265,7 @@ class MainActivity : AppCompatActivity() {
             addAction("com.example.music.TRACK_CHANGED")
             addAction("com.example.music.PLAYBACK_STATE_CHANGED")
             addAction("com.example.music.STATS_UPDATED")
+            addAction(ThemeManager.ACTION_THEME_CHANGED)
         }
         ContextCompat.registerReceiver(
             this,
@@ -253,7 +288,29 @@ class MainActivity : AppCompatActivity() {
         setupAlbumItemTouchHelper()
         setupArtistItemTouchHelper()
         setupGenreItemTouchHelper()
-        updateStatusBarColor()
+
+        // Инициализируем анимационное состояние подчёркиваний вкладок
+        initTabIndicators()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // Рисуем контент под статус-баром и делаем его прозрачным
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            run {
+                val flags = (window.decorView.systemUiVisibility
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+                window.decorView.systemUiVisibility = flags
+            }
+        }
+
+        // Показываем системные панели, включаем layout под статус-бар и применяем цвет нав-бара/иконок
+        run {
+            ThemeManager.showSystemBars(window, this)
+            setLayoutFullscreen()
+            applyContentTopPadding()
+            reapplyBarsFromBackground()
+        }
 
         createPlaylistButton = findViewById(R.id.createPlaylistButton)
 
@@ -264,6 +321,13 @@ class MainActivity : AppCompatActivity() {
         playlistList.layoutManager = GridLayoutManager(this, 2)
         playlistAdapter = PlaylistAdapter(mutableListOf(), this)
         playlistList.adapter = playlistAdapter
+
+        // Smooth item appearance on scroll/attach
+        attachAppearAnimation(trackList)
+        attachAppearAnimation(playlistList)
+        attachAppearAnimation(albumList)
+        attachAppearAnimation(artistList)
+        attachAppearAnimation(genreList)
 
         albumList.layoutManager = GridLayoutManager(this, 2)
         albumAdapter = AlbumAdapter(listOf(), this)
@@ -277,6 +341,26 @@ class MainActivity : AppCompatActivity() {
         genreAdapter = GenreAdapter(this, listOf())
         genreList.adapter = genreAdapter
 
+
+        createPlaylistGalleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                val intent = Intent(this, CropImageActivity::class.java)
+                intent.putExtra("imageUri", it)
+                createPlaylistCropLauncher.launch(intent)
+            }
+        }
+
+        createPlaylistCropLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                result.data?.data?.let { uri ->
+                    selectedCoverUri = uri
+                    // Обновим ImageView в диалоге, если он открыт
+                    val dialog = currentDialog
+                    val coverImageView = dialog?.findViewById<ImageView>(R.id.createPlaylistCover)
+                    coverImageView?.setImageURI(uri)
+                }
+            }
+        }
         searchButton.setOnClickListener {
             val intent = Intent(this, SearchActivity::class.java)
             startActivity(intent)
@@ -295,7 +379,21 @@ class MainActivity : AppCompatActivity() {
 
         albumList.itemAnimator = itemAnimator
         artistList.itemAnimator = itemAnimator
-        genreList.itemAnimator = itemAnimator
+        // Use a safer animator for genres; we'll disable it to avoid conflicts with custom animations
+        genreList.itemAnimator = null
+
+        // RecyclerView perf tweaks (notably for Artists/Genres tabs)
+        try {
+            (artistList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false
+        } catch (_: Exception) {}
+        artistList.setHasFixedSize(true)
+        artistList.setItemViewCacheSize(20)
+
+        try {
+            (genreList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false
+        } catch (_: Exception) {}
+        genreList.setHasFixedSize(true)
+        genreList.setItemViewCacheSize(20)
 
         PlaylistManager.loadPlaylists(this)
         PlaylistManager.createFavoritesIfNotExists(this)
@@ -308,6 +406,208 @@ class MainActivity : AppCompatActivity() {
         setupButtonListeners()
         initPlaylistControls()
         restoreColor()
+
+        preloadAllCachedUI()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ListeningStats.loadStats(this)
+        restoreColor()
+        // Безопасно обновляем адаптер (проверка инициализации)
+        if (::trackAdapter.isInitialized) {
+            trackAdapter.notifyDataSetChanged()
+        }
+        PlaylistManager.cleanupDeletedTracks(this)
+        updateMiniPlayer()
+        updateActiveTabColors()
+        updateMiniPlayerButton()
+
+        if (contentPlaylists.visibility == View.VISIBLE) {
+            if (!arePlaylistsLoaded) {
+                loadPlaylistsData()
+                arePlaylistsLoaded = true
+            }
+        } else if (contentAlbums.visibility == View.VISIBLE) {
+            if (!areAlbumsLoaded) {
+                loadAlbumsData()
+                areAlbumsLoaded = true
+            }
+        } else if (contentArtists.visibility == View.VISIBLE) {
+            if (!areArtistsLoaded) {
+                loadArtistsData()
+                areArtistsLoaded = true
+            }
+        } else if (contentGenres.visibility == View.VISIBLE) {
+            if (!areGenresLoaded) {
+                loadGenresData()
+                areGenresLoaded = true
+            }
+        }
+
+        // Обновляем статус- и нав-бар под текущий фон (градиент темы)
+        ThemeManager.showSystemBars(window, this)
+        setLayoutFullscreen()
+        applyContentTopPadding()
+        reapplyBarsFromBackground()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            ThemeManager.showSystemBars(window, this)
+            setLayoutFullscreen()
+            applyContentTopPadding()
+            reapplyBarsFromBackground()
+        }
+    }
+
+    private fun setLayoutFullscreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            run {
+                val decor = window.decorView
+                var flags = decor.systemUiVisibility
+                flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                decor.systemUiVisibility = flags
+            }
+        }
+    }
+
+    private fun applyContentTopPadding() {
+        val res = resources
+        val resId = res.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = if (resId > 0) res.getDimensionPixelSize(resId) else 0
+        // Сохраняем текущие боковые и нижние отступы, меняем только верхний под статус-бар
+        val left = mainLayout.paddingLeft
+        val right = mainLayout.paddingRight
+        val bottom = mainLayout.paddingBottom
+        if (mainLayout.paddingTop != statusBarHeight) {
+            mainLayout.setPadding(left, statusBarHeight, right, bottom)
+        }
+    }
+
+    private fun reapplyBarsFromBackground() {
+        // Базовое поведение: статус-бар прозрачный, нав-бар от фона главного экрана
+        when (val bg = mainLayout.background) {
+            is BitmapDrawable -> bg.bitmap?.let { applyBarsFromBitmapTop(it) }
+            is ColorDrawable -> applyBarsForColor(bg.color)
+            else -> applyBarsForColor(ThemeManager.getPrimaryGradientStart(this))
+        }
+        // Если мини-плеер показан, делаем навигационную панель единым целым с его фоном
+        if (miniPlayer.visibility == View.VISIBLE) {
+            val gradStart = ThemeManager.getPrimaryGradientStart(this)
+            val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
+            val lightStart = lighten(gradStart, 0.15f)
+            val lightEnd = lighten(gradEnd, 0.15f)
+            // Нижняя часть мини-плеера соприкасается с нав-баром, используем нижний цвет
+            applyNavBarForColor(lightEnd)
+        }
+    }
+
+    private fun applyNavBarForColor(color: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+                window.navigationBarColor = color
+            } catch (_: Exception) { }
+        }
+        val luminance = androidx.core.graphics.ColorUtils.calculateLuminance(color)
+        val lightIcons = luminance > 0.5
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            val decor = window.decorView
+            var vis = decor.systemUiVisibility
+            vis = if (lightIcons) {
+                vis or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            } else {
+                vis and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            }
+            decor.systemUiVisibility = vis
+        }
+    }
+
+    private fun applyBarsFromBitmapTop(bmp: Bitmap) {
+        try {
+            val h = bmp.height.coerceAtLeast(1)
+            val sampleHeight = (h * 0.08f).toInt().coerceIn(1, h)
+            val yEnd = sampleHeight
+            var rSum = 0L
+            var gSum = 0L
+            var bSum = 0L
+            var count = 0L
+            val w = bmp.width
+            val step = (w / 50).coerceAtLeast(1)
+            for (y in 0 until yEnd) {
+                var x = 0
+                while (x < w) {
+                    val c = bmp.getPixel(x, y)
+                    rSum += (c shr 16) and 0xFF
+                    gSum += (c shr 8) and 0xFF
+                    bSum += c and 0xFF
+                    count++
+                    x += step
+                }
+            }
+            if (count > 0) {
+                val r = (rSum / count).toInt().coerceIn(0, 255)
+                val g = (gSum / count).toInt().coerceIn(0, 255)
+                val b = (bSum / count).toInt().coerceIn(0, 255)
+                val color = android.graphics.Color.rgb(r, g, b)
+                applyBarsForColor(color)
+            }
+        } catch (_: Exception) { }
+    }
+
+    private fun applyBarsForColor(color: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+                // Статус-бар оставляем прозрачным, чтобы фон был реальным продолжением
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                // Нав-бар красим в цвет верхней части фона
+                window.navigationBarColor = color
+            } catch (_: Exception) { }
+        }
+        val luminance = ColorUtils.calculateLuminance(color)
+        val lightIcons = luminance > 0.5
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val decor = window.decorView
+            var vis = decor.systemUiVisibility
+            vis = if (lightIcons) {
+                vis or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                vis and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            }
+            decor.systemUiVisibility = vis
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            val decor = window.decorView
+            var vis = decor.systemUiVisibility
+            vis = if (lightIcons) {
+                vis or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            } else {
+                vis and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            }
+            decor.systemUiVisibility = vis
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(trackChangedReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        if (isBound) {
+            unbindService(serviceConnection)
+            isBound = false
+        }
     }
 
     private fun setupMiniPlayerUpdates() {
@@ -370,7 +670,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateMiniPlayer() {
-        if (MusicService.currentTrack != null) {
+        val isTracksTabActive = contentTracks.visibility == View.VISIBLE
+        if (MusicService.currentTrack != null && isTracksTabActive) {
             miniPlayer.visibility = View.VISIBLE
             miniPlayerTrackName.text = MusicService.currentTrack?.name
             miniPlayerArtist.text = MusicService.currentTrack?.artist ?: "Unknown Artist"
@@ -395,8 +696,10 @@ class MainActivity : AppCompatActivity() {
     private fun updateMiniPlayerButton() {
         if (MusicService.isPlaying) {
             miniPlayerPlayPause.setImageResource(R.drawable.ic_pause)
+            startAvatarSpin()
         } else {
             miniPlayerPlayPause.setImageResource(R.drawable.ic_play)
+            pauseAvatarSpin()
         }
     }
 
@@ -408,15 +711,91 @@ class MainActivity : AppCompatActivity() {
                 val artBytes = retriever.embeddedPicture
                 if (artBytes != null) {
                     val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                    imageView.setImageBitmap(bitmap)
+                    setRoundedMini(imageView, bitmap, 12f)
+                    Log.d("MainActivity", "mini rounded applied (embedded)")
                 } else {
-                    imageView.setImageResource(R.drawable.ic_album_placeholder)
+                    // Circular placeholder
+                    val d = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_album_placeholder)
+                    if (d != null) {
+                        val bm = android.graphics.Bitmap.createBitmap(48 * resources.displayMetrics.density.toInt(), 48 * resources.displayMetrics.density.toInt(), android.graphics.Bitmap.Config.ARGB_8888)
+                        val c = android.graphics.Canvas(bm)
+                        d.setBounds(0, 0, c.width, c.height)
+                        d.draw(c)
+                        setRoundedMini(imageView, bm, 999f)
+                    } else {
+                        imageView.setImageResource(R.drawable.ic_album_placeholder)
+                    }
+                    Log.d("MainActivity", "mini placeholder (no art)")
                 }
                 retriever.release()
             } catch (e: Exception) {
-                imageView.setImageResource(R.drawable.ic_album_placeholder)
+                val d = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_album_placeholder)
+                if (d != null) {
+                    val bm = android.graphics.Bitmap.createBitmap(48 * resources.displayMetrics.density.toInt(), 48 * resources.displayMetrics.density.toInt(), android.graphics.Bitmap.Config.ARGB_8888)
+                    val c = android.graphics.Canvas(bm)
+                    d.setBounds(0, 0, c.width, c.height)
+                    d.draw(c)
+                    setRoundedMini(imageView, bm, 999f)
+                } else {
+                    imageView.setImageResource(R.drawable.ic_album_placeholder)
+                }
+                Log.d("MainActivity", "mini placeholder (error): ${e.message}")
             }
         }
+    }
+
+    private fun setRoundedMini(view: ImageView, bitmap: android.graphics.Bitmap, radiusDp: Float) {
+        val density = resources.displayMetrics.density
+        val target = run {
+            val w = if (view.width > 0) view.width else (view.layoutParams?.width ?: 0)
+            val h = if (view.height > 0) view.height else (view.layoutParams?.height ?: 0)
+            val fallback = (48 * density).toInt()
+            val sz = kotlin.math.max(1, kotlin.math.min(if (w > 0) w else fallback, if (h > 0) h else fallback))
+            sz
+        }
+
+        val out = android.graphics.Bitmap.createBitmap(target, target, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            isFilterBitmap = true
+            isDither = true
+        }
+        val shader = android.graphics.BitmapShader(bitmap, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+        val scale = kotlin.math.max(target.toFloat() / bitmap.width, target.toFloat() / bitmap.height)
+        val dx = (target - bitmap.width * scale) / 2f
+        val dy = (target - bitmap.height * scale) / 2f
+        val matrix = android.graphics.Matrix().apply {
+            setScale(scale, scale)
+            postTranslate(dx, dy)
+        }
+        shader.setLocalMatrix(matrix)
+        paint.shader = shader
+        val r = target / 2f
+        canvas.drawCircle(r, r, r, paint)
+        view.scaleType = ImageView.ScaleType.FIT_XY
+        view.setImageBitmap(out)
+    }
+
+    private fun startAvatarSpin() {
+        if (avatarSpin == null) {
+            avatarSpin = ObjectAnimator.ofFloat(miniPlayerAvatar, View.ROTATION, 0f, 360f).apply {
+                duration = 8000L
+                interpolator = LinearInterpolator()
+                repeatCount = ObjectAnimator.INFINITE
+            }
+        }
+        if (miniPlayer.visibility == View.VISIBLE) {
+            if (avatarSpin?.isPaused == true) avatarSpin?.resume() else if (!(avatarSpin?.isRunning ?: false)) avatarSpin?.start()
+        }
+    }
+
+    private fun pauseAvatarSpin() {
+        avatarSpin?.takeIf { it.isRunning }?.pause()
+    }
+
+    private fun stopAvatarSpin() {
+        avatarSpin?.cancel()
+        miniPlayerAvatar.rotation = 0f
     }
 
     private fun initPlaylistControls() {
@@ -461,6 +840,11 @@ class MainActivity : AppCompatActivity() {
                 }
             } else {
                 Toast.makeText(this, "Удаление отменено", Toast.LENGTH_SHORT).show()
+            }
+        }
+        if (requestCode == CROP_IMAGE_REQUEST && resultCode == RESULT_OK) {
+            data?.data?.let { uri ->
+                selectedCoverUri = uri
             }
         }
     }
@@ -516,16 +900,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadPlaylistsData() {
-        if (!isPlaylistReorderMode) {
-            allPlaylists = PlaylistManager.getPlaylists()
-            playlistAdapter.updatePlaylists(allPlaylists)
+        if (isPlaylistReorderMode) return
+        lifecycleScope.launch {
+            // 1) Instant UI from cache
+            val cached = DataCache.loadPlaylists(this@MainActivity)
+            if (cached != null && cached.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    allPlaylists = cached.toMutableList()
+                    playlistAdapter.updatePlaylists(allPlaylists)
+                }
+            }
+
+            // 2) Refresh from source
+            val fresh = withContext(Dispatchers.IO) {
+                PlaylistManager.getPlaylists()
+            }
+            withContext(Dispatchers.Main) {
+                allPlaylists = fresh.toMutableList()
+                playlistAdapter.updatePlaylists(allPlaylists)
+            }
+            DataCache.savePlaylists(this@MainActivity, fresh)
 
             playlistAdapter.onStartDrag = { viewHolder ->
                 itemTouchHelper?.startDrag(viewHolder)
             }
-
-            playlistAdapter.onPlaylistMoved = { fromPos, toPos ->
-            }
+            playlistAdapter.onPlaylistMoved = { fromPos, toPos -> }
         }
     }
 
@@ -599,21 +998,73 @@ class MainActivity : AppCompatActivity() {
     private fun onShuffleClick() {
         val currentTracks = getCurrentSortedTracks()
         if (currentTracks.isNotEmpty()) {
-            QueueManager.shuffleQueue(this, currentTracks)
-            val firstTrack = QueueManager.getCurrentTrack()
-            if (firstTrack != null && firstTrack.path != null && File(firstTrack.path).exists()) {
-                val intent = Intent(this@MainActivity, PlayerActivity::class.java).apply {
-                    putExtra("TRACK_PATH", firstTrack.path)
-                    putExtra("TRACK_NAME", firstTrack.name)
-                    putExtra("TRACK_ARTIST", firstTrack.artist)
-                    putExtra("PLAYBACK_MODE", "SHUFFLE")
-                }
-                startActivity(intent)
+            val shuffled = currentTracks.shuffled()
+            QueueManager.initializeQueueFromPosition(this, shuffled, 0)
+            val first = QueueManager.getCurrentTrack()
+            if (first != null && first.path != null && File(first.path).exists()) {
+                musicService?.playTrack(first.path)
             } else {
                 Toast.makeText(this, "Нет доступных треков для воспроизведения", Toast.LENGTH_SHORT).show()
             }
         } else {
             Toast.makeText(this, "Нет треков для перемешивания", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun preloadAllCachedUI() {
+        lifecycleScope.launch {
+            try {
+                // Tracks
+                val cachedTracks = withContext(Dispatchers.IO) { DataCache.loadTracks(this@MainActivity) } ?: emptyList()
+                if (cachedTracks.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        tracks.clear()
+                        tracks.addAll(cachedTracks)
+                        applyFilterAndSort(true)
+                        areTracksLoaded = true
+                    }
+                }
+
+                // Playlists
+                val cachedPlaylists = withContext(Dispatchers.IO) { DataCache.loadPlaylists(this@MainActivity) } ?: emptyList()
+                if (cachedPlaylists.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        allPlaylists = cachedPlaylists.toMutableList()
+                        playlistAdapter.updatePlaylists(allPlaylists)
+                        arePlaylistsLoaded = true
+                    }
+                }
+
+                // Albums
+                val cachedAlbums = withContext(Dispatchers.IO) { DataCache.loadAlbums(this@MainActivity) } ?: emptyList()
+                if (cachedAlbums.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        albumsOrder = loadAlbumOrder(cachedAlbums).toMutableList()
+                        albumAdapter.updateAlbums(albumsOrder)
+                        areAlbumsLoaded = true
+                    }
+                }
+
+                // Artists
+                val cachedArtists = withContext(Dispatchers.IO) { DataCache.loadArtists(this@MainActivity) } ?: emptyList()
+                if (cachedArtists.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        artistsOrder = loadArtistOrder(cachedArtists).toMutableList()
+                        artistAdapter.updateArtists(artistsOrder)
+                        areArtistsLoaded = true
+                    }
+                }
+
+                // Genres
+                val cachedGenres = withContext(Dispatchers.IO) { DataCache.loadGenres(this@MainActivity) } ?: emptyList()
+                if (cachedGenres.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        genresOrder = loadGenreOrder(cachedGenres).toMutableList()
+                        genreAdapter.updateGenres(genresOrder)
+                        areGenresLoaded = true
+                    }
+                }
+            } catch (_: Exception) { }
         }
     }
 
@@ -681,35 +1132,109 @@ class MainActivity : AppCompatActivity() {
     private fun showCreatePlaylistDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_create_playlist, null)
         val nameEditText = dialogView.findViewById<EditText>(R.id.playlistNameEdit)
-        val chooseCoverButton = dialogView.findViewById<ImageButton>(R.id.chooseCoverButton)
+        val coverImageView = dialogView.findViewById<ImageView>(R.id.createPlaylistCover)
+        val createButton = dialogView.findViewById<Button>(R.id.btnCreatePlaylist)
 
-        chooseCoverButton.setOnClickListener {
+        selectedCoverUri = null
+
+        // Обработчик нажатия на обложку
+        coverImageView.setOnClickListener {
             if (hasImagePermission()) {
-                galleryLauncher.launch("image/*")
+                createPlaylistGalleryLauncher.launch("image/*")
             } else {
                 Toast.makeText(this, "Требуется разрешение на доступ к изображениям", Toast.LENGTH_SHORT).show()
                 checkAndRequestImagePermission()
             }
         }
 
-        AlertDialog.Builder(this)
-            .setTitle("Создать плейлист")
+        val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
-            .setPositiveButton("Создать") { _, _ ->
-                val name = nameEditText.text.toString()
-                if (name.isNotEmpty()) {
-                    val playlist = Playlist(name = name, coverUri = selectedCoverUri?.toString())
-                    PlaylistManager.addPlaylist(this, playlist)
-                    playlistAdapter.updatePlaylists(PlaylistManager.getPlaylists())
-                    selectedCoverUri = null
-                } else {
-                    Toast.makeText(this, "Введите название плейлиста", Toast.LENGTH_SHORT).show()
-                }
+            .setOnDismissListener {
+                currentDialog = null
+                selectedCoverUri = null
             }
-            .setNegativeButton("Отмена", null)
-            .show()
+            .create()
+        setupDialogGradient(dialog)
+        currentDialog = dialog
+
+        setupDialogGradient(dialog)
+
+        // Обработчик кнопки создания
+        createButton.setOnClickListener {
+            val name = nameEditText.text.toString().trim()
+            if (name.isNotEmpty()) {
+                val playlist = Playlist(name = name, coverUri = selectedCoverUri?.toString())
+                PlaylistManager.addPlaylist(this, playlist)
+                playlistAdapter.updatePlaylists(PlaylistManager.getPlaylists())
+                dialog.dismiss()
+            } else {
+                Toast.makeText(this, "Введите название плейлиста", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Настройка цветов текста
+        val titleView = dialog.findViewById<TextView>(android.R.id.title)
+        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+
+        dialog.show()
+
+        // Включение иммерсивного режима для диалога
+        dialog.window?.let { window ->
+            window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    )
+        }
     }
 
+    // Добавьте эту константу в класс MainActivity
+    companion object {
+        private const val CROP_IMAGE_REQUEST = 1001
+    }
+
+    private fun restoreColor() {
+        val primary = ThemeManager.getPrimaryColor(this)
+        val secondary = ThemeManager.getSecondaryColor(this)
+        val accent = ThemeManager.getAccentColor(this)
+        val gradStart = ThemeManager.getPrimaryGradientStart(this)
+        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
+
+        // Градиентный фон
+        val gd = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            intArrayOf(gradStart, gradEnd)
+        )
+        mainLayout.background = gd
+
+        // Мини-плеер: тот же градиент, но немного светлее
+        val lightStart = lighten(gradStart, 0.15f)
+        val lightEnd = lighten(gradEnd, 0.15f)
+        val miniGd = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            intArrayOf(lightStart, lightEnd)
+        )
+        miniPlayer.background = miniGd
+        // Тонируем прогресс-бары под accent и приглушенный фон
+        miniPlayerProgressBar.progressTintList = android.content.res.ColorStateList.valueOf(accent)
+        val bgTint = android.graphics.Color.argb(80, 255, 255, 255)
+        miniPlayerProgressBar.progressBackgroundTintList = android.content.res.ColorStateList.valueOf(bgTint)
+        // Цвет текста вкладок по умолчанию = secondary
+        (tabTracks.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabArtists.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabGenres.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        // Индикаторы перекрасим в accent
+        findViewById<View>(R.id.tabTracksIndicator)?.setBackgroundColor(accent)
+        findViewById<View>(R.id.tabPlaylistsIndicator)?.setBackgroundColor(accent)
+        findViewById<View>(R.id.tabAlbumsIndicator)?.setBackgroundColor(accent)
+        findViewById<View>(R.id.tabArtistsIndicator)?.setBackgroundColor(accent)
+        findViewById<View>(R.id.tabGenresIndicator)?.setBackgroundColor(accent)
+        // Текст статистики
+        trackStatsText.setTextColor(secondary)
+
+        reapplyBarsFromBackground()
+    }
     private fun selectTab(selectedTab: LinearLayout) {
         findViewById<View>(R.id.tabTracksIndicator).visibility = View.GONE
         findViewById<View>(R.id.tabPlaylistsIndicator).visibility = View.GONE
@@ -717,11 +1242,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.tabArtistsIndicator).visibility = View.GONE
         findViewById<View>(R.id.tabGenresIndicator).visibility = View.GONE
 
-        (tabTracks.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        (tabArtists.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
-        (tabGenres.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        val inactive = ThemeManager.getSecondaryColor(this)
+        (tabTracks.getChildAt(0) as? TextView)?.setTextColor(inactive)
+        (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(inactive)
+        (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(inactive)
+        (tabArtists.getChildAt(0) as? TextView)?.setTextColor(inactive)
+        (tabGenres.getChildAt(0) as? TextView)?.setTextColor(inactive)
 
         contentTracks.visibility = View.GONE
         contentPlaylists.visibility = View.GONE
@@ -739,41 +1265,133 @@ class MainActivity : AppCompatActivity() {
         when (selectedTab.id) {
             R.id.tabTracks -> {
                 findViewById<View>(R.id.tabTracksIndicator).visibility = View.VISIBLE
-                (tabTracks.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.accent_color))
+                (tabTracks.getChildAt(0) as? TextView)?.setTextColor(ThemeManager.getAccentColor(this))
                 contentTracks.visibility = View.VISIBLE
                 findViewById<LinearLayout>(R.id.trackButtons).visibility = View.VISIBLE
                 trackStatsText.visibility = View.VISIBLE
-                checkPermissionsAndLoadTracks()
+                if (!areTracksLoaded) {
+                    checkPermissionsAndLoadTracks()
+                    areTracksLoaded = true
+                }
+                // Показ мини-плеера только на вкладке Треки
+                miniPlayer.visibility = if (MusicService.currentTrack != null) View.VISIBLE else View.GONE
+                animateUnderlineTo(R.id.tabTracksIndicator)
+                if (MusicService.isPlaying) startAvatarSpin() else pauseAvatarSpin()
             }
             R.id.tabPlaylists -> {
                 findViewById<View>(R.id.tabPlaylistsIndicator).visibility = View.VISIBLE
-                (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.accent_color))
+                (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(ThemeManager.getAccentColor(this))
                 contentPlaylists.visibility = View.VISIBLE
                 findViewById<LinearLayout>(R.id.playlistButtons).visibility = View.VISIBLE
-                loadPlaylistsData()
+                if (!arePlaylistsLoaded) {
+                    loadPlaylistsData()
+                    arePlaylistsLoaded = true
+                }
+                miniPlayer.visibility = View.GONE
+                animateUnderlineTo(R.id.tabPlaylistsIndicator)
+                stopAvatarSpin()
             }
             R.id.tabAlbums -> {
                 findViewById<View>(R.id.tabAlbumsIndicator).visibility = View.VISIBLE
-                (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.accent_color))
+                (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(ThemeManager.getAccentColor(this))
                 contentAlbums.visibility = View.VISIBLE
                 findViewById<LinearLayout>(R.id.albumButtons).visibility = View.VISIBLE
-                loadAlbumsData()
+                if (!areAlbumsLoaded) {
+                    loadAlbumsData()
+                    areAlbumsLoaded = true
+                }
+                miniPlayer.visibility = View.GONE
+                animateUnderlineTo(R.id.tabAlbumsIndicator)
+                stopAvatarSpin()
             }
             R.id.tabArtists -> {
                 findViewById<View>(R.id.tabArtistsIndicator).visibility = View.VISIBLE
-                (tabArtists.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.accent_color))
+                (tabArtists.getChildAt(0) as? TextView)?.setTextColor(ThemeManager.getAccentColor(this))
                 contentArtists.visibility = View.VISIBLE
                 findViewById<LinearLayout>(R.id.artistButtons).visibility = View.VISIBLE
-                loadArtistsData()
+                if (!areArtistsLoaded) {
+                    loadArtistsData()
+                    areArtistsLoaded = true
+                }
+                miniPlayer.visibility = View.GONE
+                animateUnderlineTo(R.id.tabArtistsIndicator)
+                stopAvatarSpin()
             }
             R.id.tabGenres -> {
                 findViewById<View>(R.id.tabGenresIndicator).visibility = View.VISIBLE
-                (tabGenres.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.accent_color))
+                (tabGenres.getChildAt(0) as? TextView)?.setTextColor(ThemeManager.getAccentColor(this))
                 contentGenres.visibility = View.VISIBLE
                 findViewById<LinearLayout>(R.id.genreButtons).visibility = View.VISIBLE
-                loadGenresData()
+                if (!areGenresLoaded) {
+                    loadGenresData()
+                    areGenresLoaded = true
+                }
+                miniPlayer.visibility = View.GONE
+                animateUnderlineTo(R.id.tabGenresIndicator)
+                stopAvatarSpin()
             }
         }
+        // Перекрасить системные панели после смены вкладки
+        reapplyBarsFromBackground()
+    }
+
+    private fun initTabIndicators() {
+        val indicators = listOf(
+            findViewById<View>(R.id.tabTracksIndicator),
+            findViewById<View>(R.id.tabPlaylistsIndicator),
+            findViewById<View>(R.id.tabAlbumsIndicator),
+            findViewById<View>(R.id.tabArtistsIndicator),
+            findViewById<View>(R.id.tabGenresIndicator)
+        )
+        for (v in indicators) {
+            v.scaleX = if (v.visibility == View.VISIBLE) 1f else 0f
+            v.alpha = 1f
+            v.pivotX = v.width / 2f
+        }
+    }
+
+    private fun animateUnderlineTo(selectedIndicatorId: Int) {
+        val ids = listOf(
+            R.id.tabTracksIndicator,
+            R.id.tabPlaylistsIndicator,
+            R.id.tabAlbumsIndicator,
+            R.id.tabArtistsIndicator,
+            R.id.tabGenresIndicator
+        )
+        for (id in ids) {
+            val v = findViewById<View>(id)
+            v.pivotX = (v.width / 2f)
+            if (id == selectedIndicatorId) {
+                v.visibility = View.VISIBLE
+                v.animate().cancel()
+                if (v.scaleX < 1f) v.scaleX = 0f
+                v.animate().scaleX(1f).setDuration(200).start()
+            } else {
+                v.animate().cancel()
+                v.animate().scaleX(0f).setDuration(200).withEndAction {
+                    v.visibility = View.GONE
+                }.start()
+            }
+        }
+    }
+
+    private fun attachAppearAnimation(rv: RecyclerView) {
+        rv.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+            override fun onChildViewAttachedToWindow(view: View) {
+                view.alpha = 0.85f
+                view.scaleX = 0.96f
+                view.scaleY = 0.96f
+                view.translationY = dp(8).toFloat()
+                view.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .translationY(0f)
+                    .setDuration(160)
+                    .start()
+            }
+            override fun onChildViewDetachedFromWindow(view: View) {}
+        })
     }
 
     private fun showSearchDialog() {
@@ -811,13 +1429,19 @@ class MainActivity : AppCompatActivity() {
     private fun showSortMenu(view: View) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_sort, null)
 
+        // Находим основной контейнер для градиента
+        val dialogContentLayout = dialogView.findViewById<LinearLayout>(R.id.dialogContentLayout)
+
         val sortTypeGroup = dialogView.findViewById<RadioGroup>(R.id.sortTypeGroup)
         val btnSortAsc = dialogView.findViewById<ImageButton>(R.id.btnSortAsc)
         val btnSortDesc = dialogView.findViewById<ImageButton>(R.id.btnSortDesc)
-        val sortDirectionText = dialogView.findViewById<TextView>(R.id.sortDirectionText)
+        val sortAscContainer = dialogView.findViewById<LinearLayout>(R.id.sortAscContainer)
+        val sortDescContainer = dialogView.findViewById<LinearLayout>(R.id.sortDescContainer)
+        val sortDirectionIndicator = dialogView.findViewById<View>(R.id.sortDirectionIndicator)
         val btnApplySort = dialogView.findViewById<Button>(R.id.btnApplySort)
         val btnCancelSort = dialogView.findViewById<Button>(R.id.btnCancelSort)
 
+        // Установка текущих значений
         when (sortType) {
             0 -> sortTypeGroup.check(R.id.sortByDate)
             1 -> sortTypeGroup.check(R.id.sortByName)
@@ -826,21 +1450,34 @@ class MainActivity : AppCompatActivity() {
             4 -> sortTypeGroup.check(R.id.sortByPlays)
         }
 
-        sortDirectionText.text = if (sortAscending) "↑" else "↓"
+        // Обновление индикатора направления
+        updateSortDirectionIndicator(sortDirectionIndicator, sortAscending)
 
-        btnSortAsc.setOnClickListener {
-            sortAscending = true
-            sortDirectionText.text = "↑"
+        // Обработчики направления сортировки
+        val directionClickListener = View.OnClickListener { v ->
+            when (v.id) {
+                R.id.sortAscContainer, R.id.btnSortAsc -> {
+                    sortAscending = true
+                    updateSortDirectionIndicator(sortDirectionIndicator, true)
+                }
+                R.id.sortDescContainer, R.id.btnSortDesc -> {
+                    sortAscending = false
+                    updateSortDirectionIndicator(sortDirectionIndicator, false)
+                }
+            }
         }
 
-        btnSortDesc.setOnClickListener {
-            sortAscending = false
-            sortDirectionText.text = "↓"
-        }
+        sortAscContainer.setOnClickListener(directionClickListener)
+        sortDescContainer.setOnClickListener(directionClickListener)
+        btnSortAsc.setOnClickListener(directionClickListener)
+        btnSortDesc.setOnClickListener(directionClickListener)
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .create()
+
+    // Установка серого фона для диалога
+        setupDialogGradient(dialog)
 
         btnApplySort.setOnClickListener {
             sortType = when (sortTypeGroup.checkedRadioButtonId) {
@@ -860,10 +1497,52 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialog.show()
-        dialog.window?.setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this, android.R.color.black)))
 
-        val titleView = dialog.findViewById<TextView>(android.R.id.title)
-        titleView?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
+        // Настройка размера окна
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.85).toInt(),
+            android.view.WindowManager.LayoutParams.WRAP_CONTENT
+        )
+    }
+
+    // Вспомогательный метод для обновления индикатора направления
+    private fun updateSortDirectionIndicator(indicator: View, isAscending: Boolean) {
+        val params = indicator.layoutParams as RelativeLayout.LayoutParams
+        if (isAscending) {
+            params.addRule(RelativeLayout.ALIGN_PARENT_START)
+            params.removeRule(RelativeLayout.ALIGN_PARENT_END)
+        } else {
+            params.addRule(RelativeLayout.ALIGN_PARENT_END)
+            params.removeRule(RelativeLayout.ALIGN_PARENT_START)
+        }
+        indicator.layoutParams = params
+    }
+
+    private fun setupDialogGradient(dialog: AlertDialog) {
+        // Заменяем градиент на серый фон
+        val bg = ContextCompat.getDrawable(this, R.drawable.dialog_background)
+        dialog.window?.setBackgroundDrawable(bg)
+
+        // Устанавливаем темные цвета для системных баров
+        val darkColor = Color.parseColor("#D3D3D3")
+        dialog.window?.let { window ->
+            window.statusBarColor = darkColor
+            window.navigationBarColor = darkColor
+
+            // Светлые иконки в статус-баре для лучшей читаемости на темном фоне
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                var flags = window.decorView.systemUiVisibility
+                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                window.decorView.systemUiVisibility = flags
+            }
+
+            // Для навигационной панели (Android 8.0+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                var flags = window.decorView.systemUiVisibility
+                flags = flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+                window.decorView.systemUiVisibility = flags
+            }
+        }
     }
 
     private fun applyFilterAndSort(notify: Boolean) {
@@ -926,27 +1605,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPopupMenu(view: View) {
-        val wrapper = ContextThemeWrapper(this, R.style.Base_Theme_Music)
-        val popup = PopupMenu(wrapper, view)
-        popup.menuInflater.inflate(R.menu.main_menu, popup.menu)
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.menu_queue -> {
-                    startActivity(Intent(this, QueueActivity::class.java))
-                    true
-                }
-                R.id.menu_settings -> {
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    true
-                }
-                R.id.menu_stats -> {
-                    startActivity(Intent(this, StatsActivity::class.java))
-                    true
-                }
-                else -> false
-            }
+        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        val popupView = inflater.inflate(R.layout.main_menu, null)
+
+        val popupWindow = PopupWindow(
+            popupView,
+            650,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+
+        // Устанавливаем темный фон
+        val background = ContextCompat.getDrawable(this, R.drawable.popup_menu_background)
+        popupWindow.setBackgroundDrawable(background)
+        popupWindow.elevation = 0f
+        popupWindow.isOutsideTouchable = true
+
+        // Находим кнопки и устанавливаем обработчики
+        val settingsBtn = popupView.findViewById<LinearLayout>(R.id.btn_settings)
+        val queueBtn = popupView.findViewById<LinearLayout>(R.id.btn_queue)
+        val statsBtn = popupView.findViewById<LinearLayout>(R.id.btn_stats)
+        val clearCacheBtn = popupView.findViewById<LinearLayout>(R.id.btn_clear_cache)
+
+        settingsBtn.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
+            popupWindow.dismiss()
         }
-        popup.show()
+
+        queueBtn.setOnClickListener {
+            val intent = Intent(this, QueueActivity::class.java)
+            startActivity(intent)
+            popupWindow.dismiss()
+        }
+
+        statsBtn.setOnClickListener {
+            val intent = Intent(this, StatsActivity::class.java)
+            startActivity(intent)
+            popupWindow.dismiss()
+        }
+
+        clearCacheBtn.setOnClickListener {
+            DiskImageCache.clear()
+            DataCache.clearAll(this)
+            Toast.makeText(this, "Кэш очищен", Toast.LENGTH_SHORT).show()
+            popupWindow.dismiss()
+        }
+
+        // Показываем popup
+        popupWindow.showAsDropDown(view)
     }
 
     private fun showQueueDialog() {
@@ -981,37 +1688,34 @@ class MainActivity : AppCompatActivity() {
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 
-    override fun onResume() {
-        super.onResume()
-        ListeningStats.loadStats(this)
-        restoreColor()
-        trackAdapter.notifyDataSetChanged()
-        PlaylistManager.cleanupDeletedTracks(this)
-        updateMiniPlayer()
-        updateMiniPlayerButton()
-        updateStatusBarColor()
-
-        if (contentPlaylists.visibility == View.VISIBLE) {
-            loadPlaylistsData()
-        } else if (contentAlbums.visibility == View.VISIBLE) {
-            loadAlbumsData()
-        } else if (contentArtists.visibility == View.VISIBLE) {
-            loadArtistsData()
-        } else if (contentGenres.visibility == View.VISIBLE) {
-            loadGenresData()
-        }
+    private fun lighten(color: Int, factor: Float): Int {
+        val a = (color ushr 24) and 0xFF
+        val r = (color ushr 16) and 0xFF
+        val g = (color ushr 8) and 0xFF
+        val b = color and 0xFF
+        val nr = (r + ((255 - r) * factor)).toInt().coerceIn(0, 255)
+        val ng = (g + ((255 - g) * factor)).toInt().coerceIn(0, 255)
+        val nb = (b + ((255 - b) * factor)).toInt().coerceIn(0, 255)
+        return (a shl 24) or (nr shl 16) or (ng shl 8) or nb
     }
 
-    private fun restoreColor() {
-        val sharedPreferences = getSharedPreferences("app_settings", MODE_PRIVATE)
-        val scheme = sharedPreferences.getInt("color_scheme", 0)
-        val color = when (scheme) {
-            1 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.darker_gray))
-            2 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-            3 -> ColorDrawable(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            else -> ColorDrawable(ContextCompat.getColor(this, android.R.color.black))
+    private fun updateActiveTabColors() {
+        val accent = ThemeManager.getAccentColor(this)
+        val secondary = ThemeManager.getSecondaryColor(this)
+        // Сбросим все
+        (tabTracks.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabArtists.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        (tabGenres.getChildAt(0) as? TextView)?.setTextColor(secondary)
+        // Активную окрасим в accent по видимому контейнеру
+        when {
+            contentTracks.visibility == View.VISIBLE -> (tabTracks.getChildAt(0) as? TextView)?.setTextColor(accent)
+            contentPlaylists.visibility == View.VISIBLE -> (tabPlaylists.getChildAt(0) as? TextView)?.setTextColor(accent)
+            contentAlbums.visibility == View.VISIBLE -> (tabAlbums.getChildAt(0) as? TextView)?.setTextColor(accent)
+            contentArtists.visibility == View.VISIBLE -> (tabArtists.getChildAt(0) as? TextView)?.setTextColor(accent)
+            contentGenres.visibility == View.VISIBLE -> (tabGenres.getChildAt(0) as? TextView)?.setTextColor(accent)
         }
-        mainLayout.background = color
     }
 
     private fun hasStoragePermission(): Boolean {
@@ -1394,34 +2098,5 @@ class MainActivity : AppCompatActivity() {
         }
 
         return orderedGenres
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            unregisterReceiver(trackChangedReceiver)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        if (isBound) {
-            unbindService(serviceConnection)
-            isBound = false
-        }
-    }
-
-    private fun updateStatusBarColor() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            val sharedPreferences = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            val scheme = sharedPreferences.getInt("color_scheme", 0)
-
-            val color = when (scheme) {
-                1 -> ContextCompat.getColor(this, android.R.color.darker_gray)
-                2 -> ContextCompat.getColor(this, android.R.color.holo_blue_dark)
-                3 -> ContextCompat.getColor(this, android.R.color.holo_green_dark)
-                else -> ContextCompat.getColor(this, android.R.color.black)
-            }
-
-            window.statusBarColor = color
-        }
     }
 }

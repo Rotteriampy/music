@@ -21,7 +21,8 @@
         android:layout_height="48dp"
         android:src="@android:drawable/ic_menu_gallery"
         android:scaleType="centerCrop"
-        android:contentDescription="Track avatar" />
+        android:contentDescription="Track avatar"
+        />
 
     <LinearLayout
         android:layout_width="0dp"
