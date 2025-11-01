@@ -106,56 +106,56 @@ class ArtistAdapter(
             }
             jobs[holder.coverImage] = job
         } else {
-            val cachedTrackPath = prefs.getString("artist_${artist.name}_cover_track", null)
-            var set = false
-            if (cachedTrackPath != null) {
-                // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
-                val key = getArtistCacheKey(artist.name, "cover_track_${cachedTrackPath}")
-                holder.coverImage.tag = key
-                val job = ioScope.launch {
-                    val ok = loadCoverAsyncRounded(cachedTrackPath, holder.coverImage, key) {
-                        // Белые тексты при успешной загрузке
+            val cachedTrackPath = prefs.getString("artist_${'$'}{artist.name}_cover_track", null)
+            val displayName = (customName ?: artist.name).trim()
+            // Единая асинхронная задача: пробуем кэшированный трек, затем ищем первый трек С ОБЛОЖКОЙ
+            val job = ioScope.launch {
+                var success = false
+
+                // 1) Попытка: кэшированный путь
+                if (cachedTrackPath != null) {
+                    val key = getArtistCacheKey(artist.name, "cover_track_${'$'}cachedTrackPath")
+                    withContext(Dispatchers.Main) { holder.coverImage.tag = key }
+                    success = loadCoverAsyncRounded(cachedTrackPath, holder.coverImage, key) {
                         holder.artistName.setTextColor(android.graphics.Color.WHITE)
                         holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
                     }
-                    if (ok) set = true
                 }
-                jobs[holder.coverImage] = job
-            }
 
-            if (!set) {
-                val firstWithPath = artist.tracks.firstOrNull { it.path != null }?.path
-                if (firstWithPath != null) {
-                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
-                    val key = getArtistCacheKey(artist.name, "cover_track_${firstWithPath}")
-                    holder.coverImage.tag = key
-                    val job = ioScope.launch {
-                        val ok = loadCoverAsyncRounded(firstWithPath, holder.coverImage, key) {
-                            holder.artistName.setTextColor(android.graphics.Color.WHITE)
-                            holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
-                        }
-                        if (ok) {
-                            prefs.edit().putString("artist_${artist.name}_cover_track", firstWithPath).apply()
+                // 2) Если не вышло — ищем первый трек, у которого действительно есть embedded artwork
+                if (!success) {
+                    for (t in artist.tracks) {
+                        val p = t.path ?: continue
+                        val key = getArtistCacheKey(artist.name, "cover_track_${'$'}p")
+                        withContext(Dispatchers.Main) { holder.coverImage.tag = key }
+                        if (loadCoverAsyncRounded(p, holder.coverImage, key) {
+                                holder.artistName.setTextColor(android.graphics.Color.WHITE)
+                                holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
+                            }) {
+                            prefs.edit().putString("artist_${'$'}{artist.name}_cover_track", p).apply()
+                            success = true
+                            break
                         }
                     }
-                    jobs[holder.coverImage] = job
+                }
+
+                // 3) Фолбэк — буквенная обложка только если не найдено ни одной обложки
+                if (!success) {
+                    val letterKey = getArtistCacheKey(artist.name, "letter_cover")
+                    var rounded = DiskImageCache.getBitmap(letterKey)
+                    if (rounded == null) {
+                        val bmp = generateLetterCover(displayName)
+                        rounded = roundToViewFixed(bmp, holder.coverImage, 12f)
+                        DiskImageCache.putBitmap(letterKey, rounded!!)
+                    }
+                    withContext(Dispatchers.Main) {
+                        holder.coverImage.setImageBitmap(rounded)
+                        holder.artistName.setTextColor(android.graphics.Color.WHITE)
+                        holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
+                    }
                 }
             }
-            if (!set) {
-                val displayName = (customName ?: artist.name).trim()
-                // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
-                val letterKey = getArtistCacheKey(artist.name, "letter_cover")
-                var rounded = DiskImageCache.getBitmap(letterKey)
-                if (rounded == null) {
-                    val bmp = generateLetterCover(displayName)
-                    rounded = roundToViewFixed(bmp, holder.coverImage, 12f)
-                    DiskImageCache.putBitmap(letterKey, rounded)
-                }
-                holder.coverImage.setImageBitmap(rounded)
-                // Буквенная обложка — тоже аватарка: делаем тексты белыми
-                holder.artistName.setTextColor(android.graphics.Color.WHITE)
-                holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
-            }
+            jobs[holder.coverImage] = job
         }
 
         holder.itemView.setOnClickListener {

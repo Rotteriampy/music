@@ -11,6 +11,10 @@ import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.media.MediaMetadataRetriever
 import android.os.Build
+import android.view.LayoutInflater
+import android.widget.LinearLayout
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.IBinder
 import android.widget.ImageButton
@@ -28,6 +32,7 @@ import android.renderscript.Element
 import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
 import java.io.File
+import android.util.TypedValue
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -41,7 +46,7 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var nextButton: ImageButton
     private lateinit var previousButton: ImageButton
     private lateinit var backButton: ImageButton
-    private lateinit var addToPlaylistButton: ImageButton
+    private lateinit var more: ImageButton
     private lateinit var favoritesButton: ImageButton
     private lateinit var btnPlaybackMode: ImageButton
     private lateinit var btnSongTab: TextView
@@ -111,7 +116,7 @@ class PlayerActivity : AppCompatActivity() {
         nextButton = findViewById(R.id.nextButton)
         previousButton = findViewById(R.id.previousButton)
         backButton = findViewById(R.id.backButton)
-        addToPlaylistButton = findViewById(R.id.addToPlaylistButton)
+        more = findViewById(R.id.more)
         favoritesButton = findViewById(R.id.favoriteButton)
         btnPlaybackMode = findViewById(R.id.playbackModeButton)
         btnSongTab = findViewById(R.id.btnSongTab)
@@ -214,7 +219,7 @@ class PlayerActivity : AppCompatActivity() {
         backButton.setOnClickListener { finish() }
 
         // Top-right 'more' button: open same options menu as in track list
-        addToPlaylistButton.setOnClickListener {
+        more.setOnClickListener {
             val trackPath = intent.getStringExtra("TRACK_PATH")
             val trackForMenu = currentTrack ?: findFullTrack(trackPath) ?: Track(
                 name = intent.getStringExtra("TRACK_NAME") ?: "",
@@ -224,7 +229,7 @@ class PlayerActivity : AppCompatActivity() {
                 duration = null,
                 dateModified = null
             )
-            showPlayerMoreOptions(trackForMenu)
+            showPlayerTrackMenu(trackForMenu)
         }
 
         favoritesButton.setOnClickListener {
@@ -489,6 +494,90 @@ class PlayerActivity : AppCompatActivity() {
         builder.show()
     }
 
+    private fun showPlayerTrackMenu(track: Track) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_player_menu, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        // Настройка заголовка
+        val tvTitle = dialogView.findViewById<TextView>(R.id.tvMenuTitle)
+        tvTitle.text = track.name
+
+        // Проверяем, находится ли трек в избранном
+        val isFavorite = PlaylistManager.isInFavorites(track)
+
+        // Иконки действий
+        val ivFavorite = dialogView.findViewById<ImageView>(R.id.ivFavorite)
+        val ivEdit = dialogView.findViewById<ImageView>(R.id.ivEdit)
+        val ivInfo = dialogView.findViewById<ImageView>(R.id.ivInfo)
+        val ivShare = dialogView.findViewById<ImageView>(R.id.ivShare)
+        val ivDelete = dialogView.findViewById<ImageView>(R.id.ivDelete)
+
+        // Обновляем иконку избранного
+        updateFavoriteIcon(ivFavorite, isFavorite)
+
+        // Обработчики кликов для иконок
+        ivFavorite.setOnClickListener {
+            toggleFavorite(track)
+            dialog.dismiss()
+        }
+
+        ivEdit.setOnClickListener {
+            showEditTags(track)
+            dialog.dismiss()
+        }
+
+        ivInfo.setOnClickListener {
+            TrackInfoDialog(this, track).show()
+            dialog.dismiss()
+        }
+
+        ivShare.setOnClickListener {
+            shareTrack(track)
+            dialog.dismiss()
+        }
+
+        ivDelete.setOnClickListener {
+            confirmDelete(track)
+            dialog.dismiss()
+        }
+
+        // Новая кнопка "Очередь"
+        dialogView.findViewById<LinearLayout>(R.id.tvQueue).setOnClickListener {
+            startActivity(Intent(this, QueueActivity::class.java))
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvAddToQueue).setOnClickListener {
+            addToQueue(track)
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvAddToPlaylist).setOnClickListener {
+            showPlaylistDialog(track)
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvSetAsRingtone).setOnClickListener {
+            setAsRingtone(track)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+    }
+
+    private fun updateFavoriteIcon(imageView: ImageView, isFavorite: Boolean) {
+        if (isFavorite) {
+            imageView.setImageResource(R.drawable.ic_favorite_filled)
+            imageView.setColorFilter(Color.RED)
+        } else {
+            imageView.setImageResource(R.drawable.ic_favorite_border)
+            imageView.setColorFilter(Color.WHITE)
+        }
+    }
+
     private fun deleteTrackFile(path: String?) {
         if (path == null) {
             Toast.makeText(this, "Некорректный путь к файлу", Toast.LENGTH_SHORT).show()
@@ -597,22 +686,66 @@ class PlayerActivity : AppCompatActivity() {
             return
         }
 
-        val playlistNames = playlists.map { it.name }.toTypedArray()
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_playlist_select_styled, null)
+        val container = dialogView.findViewById<LinearLayout>(R.id.playlistContainer)
 
-        AlertDialog.Builder(this)
-            .setTitle("Добавить в плейлист")
-            .setItems(playlistNames) { _, which ->
-                val selectedPlaylist = playlists[which]
+        val selectable = TypedValue().also {
+            theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
+        }
 
-                if (selectedPlaylist.tracks.any { it.path == track.path }) {
+        var dialog: AlertDialog? = null
+
+        playlists.forEach { playlist ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                setBackgroundResource(selectable.resourceId)
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+
+            val icon = ImageView(this).apply {
+                setImageResource(R.drawable.ic_playlist_add)
+                setColorFilter(ContextCompat.getColor(this@PlayerActivity, R.color.colorIconTint))
+                val lp = LinearLayout.LayoutParams(dp(24), dp(24))
+                layoutParams = lp
+            }
+
+            val title = TextView(this).apply {
+                text = playlist.name
+                setTextColor(ContextCompat.getColor(this@PlayerActivity, R.color.colorTextPrimary))
+                textSize = 16f
+                val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                lp.marginStart = dp(12)
+                layoutParams = lp
+            }
+
+            row.addView(icon)
+            row.addView(title)
+
+            row.setOnClickListener {
+                val already = playlist.tracks.any { it.path == track.path }
+                if (already) {
                     Toast.makeText(this, "Трек уже в плейлисте", Toast.LENGTH_SHORT).show()
                 } else {
-                    PlaylistManager.addTrackToPlaylist(this, selectedPlaylist.id, track)
-                    Toast.makeText(this, "Добавлено в ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                    PlaylistManager.addTrackToPlaylist(this, playlist.id, track)
+                    Toast.makeText(this, "Добавлено в ${playlist.name}", Toast.LENGTH_SHORT).show()
                 }
+                dialog?.dismiss()
             }
-            .setNegativeButton("Отмена", null)
-            .show()
+
+            container.addView(row)
+        }
+
+        dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     }
 
     private fun updateUI() {

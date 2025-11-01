@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.content.Intent
 import android.net.Uri
 import java.net.URLEncoder
+import androidx.core.view.ViewCompat
 
 class LyricsActivity : AppCompatActivity() {
 
@@ -30,6 +31,16 @@ class LyricsActivity : AppCompatActivity() {
         btnSave = findViewById(R.id.btnSaveLyrics)
         btnFind = findViewById(R.id.btnFindLyrics)
         btnBack = findViewById(R.id.btnBack)
+
+        // Принудительно назначаем нужные фоны и снимаем системный tint, чтобы не был фиолетовым
+        try {
+            btnSave.setBackgroundResource(R.drawable.button_background_green)
+            btnFind.setBackgroundResource(R.drawable.button_background_blue)
+            ViewCompat.setBackgroundTintList(btnSave, null)
+            ViewCompat.setBackgroundTintList(btnFind, null)
+            btnSave.setTextColor(android.graphics.Color.WHITE)
+            btnFind.setTextColor(android.graphics.Color.WHITE)
+        } catch (_: Exception) { }
 
         val trackName = intent.getStringExtra("TRACK_NAME") ?: ""
         val trackArtist = intent.getStringExtra("TRACK_ARTIST") ?: ""

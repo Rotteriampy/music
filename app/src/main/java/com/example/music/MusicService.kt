@@ -26,15 +26,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.Toast
 import android.util.Log
+import android.widget.Toast
+import kotlin.math.max
 
 class MusicService : Service() {
 
     companion object {
         const val CHANNEL_ID = "MusicPlayerChannel"
         const val NOTIFICATION_ID = 1
-
         const val ACTION_PLAY = "com.arotter.music.ACTION_PLAY"
         const val ACTION_PAUSE = "com.arotter.music.ACTION_PAUSE"
         const val ACTION_NEXT = "com.arotter.music.ACTION_NEXT"
@@ -55,13 +55,12 @@ class MusicService : Service() {
     private lateinit var mediaSession: MediaSessionCompat
     private var playbackMode = "NORMAL"
     private var hasCountedAsPlayed = false
-    private var lastCheckedPosition = 0 // Добавьте эту строку
+    private var lastCheckedPosition = 0
     private var hasSeekedThisTrack = false
 
     private val playbackModeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             playbackMode = intent?.getStringExtra("playback_mode") ?: "NORMAL"
-            // Обновим уведомление и состояние — чтобы иконка режима поменялась мгновенно
             updatePlaybackState()
             showNotification()
         }
@@ -93,35 +92,19 @@ class MusicService : Service() {
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
 
-        // Создаём MediaSession для интеграции с экраном блокировки
+        // Создаём MediaSession
         mediaSession = MediaSessionCompat(this, "MusicService").apply {
             setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
                         MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
             )
-
             setCallback(object : MediaSessionCompat.Callback() {
-                override fun onPlay() {
-                    resumeMusic()
-                }
-
-                override fun onPause() {
-                    pauseMusic()
-                }
-
-                override fun onSkipToNext() {
-                    playNext()
-                }
-
-                override fun onSkipToPrevious() {
-                    playPrevious()
-                }
-
-                override fun onStop() {
-                    stopService()
-                }
+                override fun onPlay() = resumeMusic()
+                override fun onPause() = pauseMusic()
+                override fun onSkipToNext() = playNext()
+                override fun onSkipToPrevious() = playPrevious()
+                override fun onStop() = stopService()
             })
-
             isActive = true
         }
     }
@@ -134,46 +117,7 @@ class MusicService : Service() {
             ACTION_PREVIOUS -> playPrevious()
             ACTION_STOP -> stopService()
             ACTION_CLOSE -> stopService()
-            ACTION_SET_MODE -> {
-                // Toggle mode if not explicitly provided, and mirror PlayerActivity logic
-                val previousMode = playbackMode
-                val requested = intent.getStringExtra("playback_mode")
-                playbackMode = when (requested ?: previousMode) {
-                    // If explicit target provided, use it; otherwise cycle
-                    null -> previousMode
-                    else -> requested ?: previousMode
-                }
-
-                if (requested == null) {
-                    playbackMode = when (previousMode) {
-                        "NORMAL" -> "REPEAT_ONE"
-                        "REPEAT_ONE" -> "SHUFFLE"
-                        "SHUFFLE" -> "STOP_AFTER"
-                        "STOP_AFTER" -> "NORMAL"
-                        else -> "NORMAL"
-                    }
-                }
-
-                // Apply side-effects for shuffle mode similar to PlayerActivity
-                if (previousMode == "SHUFFLE" && playbackMode != "SHUFFLE") {
-                    // leaving shuffle -> restore original order
-                    try { QueueManager.restoreOriginalQueue(this) } catch (_: Exception) {}
-                } else if (playbackMode == "SHUFFLE" && previousMode != "SHUFFLE") {
-                    try { QueueManager.shuffleQueue(this) } catch (_: Exception) {}
-                }
-
-                // persist for future runs
-                val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putString("playback_mode", playbackMode).apply()
-
-                // notify UI and refresh notification icon
-                Intent("com.arotter.music.PLAYBACK_MODE_CHANGED").apply {
-                    putExtra("playback_mode", playbackMode)
-                    setPackage(applicationContext.packageName)
-                }.also { sendBroadcast(it) }
-                updatePlaybackState()
-                showNotification()
-            }
+            ACTION_SET_MODE -> handleSetMode(intent)
             else -> {
                 val trackPath = intent?.getStringExtra("TRACK_PATH")
                 if (trackPath != null) {
@@ -184,12 +128,52 @@ class MusicService : Service() {
         return START_STICKY
     }
 
+    private fun handleSetMode(intent: Intent) {
+        val previousMode = playbackMode
+        val requested = intent.getStringExtra("playback_mode")
+
+        playbackMode = if (requested != null) {
+            requested
+        } else {
+            when (previousMode) {
+                "NORMAL" -> "REPEAT_ONE"
+                "REPEAT_ONE" -> "SHUFFLE"
+                "SHUFFLE" -> "STOP_AFTER"
+                "STOP_AFTER" -> "NORMAL"
+                else -> "NORMAL"
+            }
+        }
+
+        // Применяем побочные эффекты для shuffle
+        if (previousMode == "SHUFFLE" && playbackMode != "SHUFFLE") {
+            try { QueueManager.restoreOriginalQueue(this) } catch (_: Exception) {}
+        } else if (playbackMode == "SHUFFLE" && previousMode != "SHUFFLE") {
+            try { QueueManager.shuffleQueue(this) } catch (_: Exception) {}
+        }
+
+        // Сохраняем режим
+        getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putString("playback_mode", playbackMode)
+            .apply()
+
+        // Уведомляем UI
+        Intent("com.arotter.music.PLAYBACK_MODE_CHANGED").apply {
+            putExtra("playback_mode", playbackMode)
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
+
+        updatePlaybackState()
+        showNotification()
+    }
+
     fun playTrack(path: String) {
         if (currentTrackPath == path && mediaPlayer != null) {
             resumeMusic()
             return
         }
-        // Перед переключением трека — зафиксируем процент прослушивания предыдущего (если не было перемоток)
+
+        // Фиксируем процент прослушивания предыдущего трека
         try {
             val prevPath = currentTrackPath
             if (prevPath != null && mediaPlayer != null && !hasSeekedThisTrack && !hasCountedAsPlayed) {
@@ -223,16 +207,17 @@ class MusicService : Service() {
 
         currentTrackPath = path
         currentTrack = QueueManager.getCurrentTrack()
-        // Если очередь пустая (например, запущено воспроизведение напрямую по TRACK_PATH),
-        // и у нас есть текущий трек — создадим минимальную очередь из одного элемента.
-        if ((QueueManager.getCurrentQueue().isEmpty()) && currentTrack != null) {
+
+        // Если очередь пустая — создаём минимальную
+        if (QueueManager.getCurrentQueue().isEmpty() && currentTrack != null) {
             QueueManager.initializeQueueFromPosition(this, mutableListOf(currentTrack!!), 0)
         }
+
         hasCountedAsPlayed = false
-        lastCheckedPosition = 0 // Добавьте эту строку
+        lastCheckedPosition = 0
         hasSeekedThisTrack = false
 
-        // Broadcast immediately so UI (lists/queue) updates highlighting without delay
+        // Уведомляем UI
         Intent("com.arotter.music.TRACK_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
@@ -244,105 +229,10 @@ class MusicService : Service() {
                 prepare()
                 start()
                 MusicService.isPlaying = true
-
-                setOnCompletionListener {
-                    checkAndIncrementPlayCount()
-
-                    when (playbackMode) {
-                        "REPEAT_ONE" -> {
-                            // Повторяем текущий трек и обновляем состояние
-                            // Внутренний возврат в начало без отметки пользовательской перемотки
-                            try { mediaPlayer?.seekTo(0) } catch (_: Exception) {}
-                            start()
-                            MusicService.isPlaying = true
-                            updatePlaybackState()
-                            showNotification()
-                            Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
-                                setPackage(applicationContext.packageName)
-                            }.also { sendBroadcast(it) }
-                        }
-                        "SHUFFLE" -> {
-                            // Случайный трек из очереди
-                            val queue = QueueManager.getCurrentQueue()
-                            if (queue.size > 1) {
-                                val randomIndex = (0 until queue.size).random()
-                                QueueManager.initializeQueueFromPosition(this@MusicService, queue, randomIndex)
-                                val randomTrack = QueueManager.getCurrentTrack()
-                                if (randomTrack?.path != null) {
-                                    playTrack(randomTrack.path)
-                                }
-                            } else {
-                                stopSelf()
-                            }
-                        }
-                        "STOP_AFTER" -> {
-                            // Останавливаемся после текущего трека: останавливаем плеер, скрываем уведомление
-                            try { stop() } catch (_: Exception) {}
-                            MusicService.isPlaying = false
-                            updatePlaybackState()
-                            stopForeground(true)
-                            showNotification()
-
-                            // Сброс режима обратно в NORMAL (одноразовый STOP_AFTER)
-                            playbackMode = "NORMAL"
-                            val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
-                            prefs.edit().putString("playback_mode", playbackMode).apply()
-
-                            // Уведомляем UI об изменении состояния и режима
-                            Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
-                                setPackage(applicationContext.packageName)
-                            }.also { sendBroadcast(it) }
-                            Intent("com.arotter.music.PLAYBACK_MODE_CHANGED").apply {
-                                putExtra("playback_mode", playbackMode)
-                                setPackage(applicationContext.packageName)
-                            }.also { sendBroadcast(it) }
-
-                            stopSelf()
-                        }
-                        "REPEAT_ALL" -> {
-                            // Переходим к следующему, если очередь закончилась - начинаем сначала
-                            if (QueueManager.moveToNextTrack(this@MusicService)) {
-                                val nextTrack = QueueManager.getCurrentTrack()
-                                if (nextTrack?.path != null) {
-                                    playTrack(nextTrack.path)
-                                } else {
-                                    val queue = QueueManager.getCurrentQueue()
-                                    if (queue.isNotEmpty()) {
-                                        QueueManager.initializeQueueFromPosition(this@MusicService, queue, 0)
-                                        val firstTrack = QueueManager.getCurrentTrack()
-                                        if (firstTrack?.path != null) {
-                                            playTrack(firstTrack.path)
-                                        }
-                                    }
-                                }
-                            } else {
-                                val queue = QueueManager.getCurrentQueue()
-                                if (queue.isNotEmpty()) {
-                                    QueueManager.initializeQueueFromPosition(this@MusicService, queue, 0)
-                                    val firstTrack = QueueManager.getCurrentTrack()
-                                    if (firstTrack?.path != null) {
-                                        playTrack(firstTrack.path)
-                                    }
-                                }
-                            }
-                        }
-                        else -> {
-                            // NORMAL - обычное воспроизведение
-                            if (QueueManager.moveToNextTrack(this@MusicService)) {
-                                val nextTrack = QueueManager.getCurrentTrack()
-                                if (nextTrack?.path != null) {
-                                    playTrack(nextTrack.path)
-                                } else {
-                                    stopSelf()
-                                }
-                            } else {
-                                stopSelf()
-                            }
-                        }
-                    }
-                }
+                setOnCompletionListener { onTrackCompleted() }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MusicService", "Error playing track", e)
+                return
             }
         }
 
@@ -350,6 +240,73 @@ class MusicService : Service() {
         updatePlaybackState()
         showNotification()
         startPositionUpdates()
+    }
+
+    private fun onTrackCompleted() {
+        checkAndIncrementPlayCount()
+
+        when (playbackMode) {
+            "REPEAT_ONE" -> {
+                mediaPlayer?.seekTo(0)
+                mediaPlayer?.start()
+                MusicService.isPlaying = true
+                updatePlaybackState()
+                showNotification()
+                Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
+                    setPackage(applicationContext.packageName)
+                }.also { sendBroadcast(it) }
+            }
+            "SHUFFLE" -> {
+                val queue = QueueManager.getCurrentQueue()
+                if (queue.size > 1) {
+                    val randomIndex = (0 until queue.size).random()
+                    QueueManager.initializeQueueFromPosition(this, queue, randomIndex)
+                    val randomTrack = QueueManager.getCurrentTrack()
+                    if (randomTrack?.path != null) {
+                        playTrack(randomTrack.path)
+                    }
+                } else {
+                    stopSelf()
+                }
+            }
+            "STOP_AFTER" -> {
+                pauseMusic()
+                playbackMode = "NORMAL"
+                getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("playback_mode", playbackMode)
+                    .apply()
+                Intent("com.arotter.music.PLAYBACK_MODE_CHANGED").apply {
+                    putExtra("playback_mode", playbackMode)
+                    setPackage(applicationContext.packageName)
+                }.also { sendBroadcast(it) }
+                stopSelf()
+            }
+            else -> { // NORMAL or REPEAT_ALL
+                val moved = QueueManager.moveToNextTrack(this)
+                if (moved) {
+                    QueueManager.getCurrentTrack()?.path?.let { playTrack(it) }
+                    return
+                }
+
+                val queue = QueueManager.getCurrentQueue()
+                if (playbackMode == "REPEAT_ALL") {
+                    if (queue.isNotEmpty()) {
+                        QueueManager.initializeQueueFromPosition(this, queue, 0)
+                        QueueManager.getCurrentTrack()?.path?.let { playTrack(it) }
+                    }
+                } else { // NORMAL
+                    val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+                    val continueFromStart = prefs.getBoolean("continue_from_start", false)
+                    if (continueFromStart && queue.isNotEmpty()) {
+                        QueueManager.initializeQueueFromPosition(this, queue, 0)
+                        QueueManager.getCurrentTrack()?.path?.let { playTrack(it) }
+                    } else {
+                        stopSelf()
+                    }
+                }
+            }
+        }
     }
 
     fun pauseMusic() {
@@ -365,7 +322,7 @@ class MusicService : Service() {
     fun resumeMusic() {
         mediaPlayer?.start()
         isPlaying = true
-        startPositionUpdates() // Добавьте этот вызов
+        startPositionUpdates()
         updatePlaybackState()
         showNotification()
         Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
@@ -377,7 +334,6 @@ class MusicService : Service() {
         if (QueueManager.moveToNextTrack(this)) {
             val nextTrack = QueueManager.getCurrentTrack()
             if (nextTrack?.path != null) {
-                // Notify UI about current index change instantly
                 Intent("com.arotter.music.TRACK_CHANGED").apply {
                     setPackage(applicationContext.packageName)
                 }.also { sendBroadcast(it) }
@@ -386,12 +342,27 @@ class MusicService : Service() {
                 Toast.makeText(this, "Следующий трек недоступен", Toast.LENGTH_SHORT).show()
             }
         } else {
-            Toast.makeText(this, "Это последний трек", Toast.LENGTH_SHORT).show()
+            val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+            val continueFromStart = prefs.getBoolean("continue_from_start", false)
+            if (continueFromStart) {
+                val queue = QueueManager.getCurrentQueue()
+                if (queue.isNotEmpty()) {
+                    QueueManager.initializeQueueFromPosition(this, queue, 0)
+                    val firstTrack = QueueManager.getCurrentTrack()
+                    if (firstTrack?.path != null) {
+                        Intent("com.arotter.music.TRACK_CHANGED").apply {
+                            setPackage(applicationContext.packageName)
+                        }.also { sendBroadcast(it) }
+                        playTrack(firstTrack.path)
+                    }
+                }
+            } else {
+                Toast.makeText(this, "Это последний трек", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun playPrevious() {
-        // Если воспроизведение ушло дальше первых 5 секунд, перематываем в начало текущего трека
         val positionMs = getCurrentPosition()
         if (positionMs > 5000) {
             seekTo(0)
@@ -400,7 +371,6 @@ class MusicService : Service() {
             return
         }
 
-        // Иначе переходим к предыдущему треку
         if (QueueManager.moveToPreviousTrack(this)) {
             val previousTrack = QueueManager.getCurrentTrack()
             if (previousTrack?.path != null) {
@@ -419,26 +389,15 @@ class MusicService : Service() {
     fun seekTo(position: Int) {
         val duration = getDuration()
         Log.d("PLAY_COUNT", "SEEK: position=$position, duration=$duration, 90%=${duration * 0.9f}")
-
         mediaPlayer?.seekTo(position)
-
-        // При любой перемотке сбрасываем счетчик
         hasCountedAsPlayed = false
         hasSeekedThisTrack = true
-
-        // Устанавливаем позицию, НО помечаем как "после перемотки"
-        lastCheckedPosition = -1 // Специальное значение = "только что перемотали"
-
+        lastCheckedPosition = -1
         Log.d("PLAY_COUNT", "Reset counted flag (any seek)")
     }
 
-    fun getCurrentPosition(): Int {
-        return mediaPlayer?.currentPosition ?: 0
-    }
-
-    fun getDuration(): Int {
-        return mediaPlayer?.duration ?: 0
-    }
+    fun getCurrentPosition(): Int = mediaPlayer?.currentPosition ?: 0
+    fun getDuration(): Int = mediaPlayer?.duration ?: 0
 
     fun setOnUpdateListener(listener: (Int, Int) -> Unit) {
         updateListener = listener
@@ -446,10 +405,8 @@ class MusicService : Service() {
 
     private fun updateMediaSessionMetadata() {
         val track = currentTrack ?: return
-
         CoroutineScope(Dispatchers.IO).launch {
             val albumArt = loadAlbumArt()
-
             withContext(Dispatchers.Main) {
                 val metadata = MediaMetadataCompat.Builder()
                     .putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.name)
@@ -458,19 +415,13 @@ class MusicService : Service() {
                     .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, getDuration().toLong())
                     .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, albumArt)
                     .build()
-
                 mediaSession.setMetadata(metadata)
             }
         }
     }
 
     private fun updatePlaybackState() {
-        val state = if (isPlaying) {
-            PlaybackStateCompat.STATE_PLAYING
-        } else {
-            PlaybackStateCompat.STATE_PAUSED
-        }
-
+        val state = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
@@ -481,7 +432,6 @@ class MusicService : Service() {
             )
             .setState(state, getCurrentPosition().toLong(), 1.0f)
             .build()
-
         mediaSession.setPlaybackState(playbackState)
     }
 
@@ -490,8 +440,6 @@ class MusicService : Service() {
             Log.d("PLAY_COUNT", "Early return: counted=$hasCountedAsPlayed, path=$currentTrackPath, playing=$isPlaying")
             return
         }
-
-        // Если была хоть одна перемотка за время этого трека — не засчитываем прослушивание
         if (hasSeekedThisTrack) {
             Log.d("PLAY_COUNT", "Skip count due to seek during track")
             return
@@ -503,7 +451,6 @@ class MusicService : Service() {
 
         val playedPercentage = (currentPos.toFloat() / duration.toFloat()) * 100
 
-        // Если только что была перемотка — пропустить этот тик
         if (lastCheckedPosition == -1) {
             lastCheckedPosition = currentPos
             Log.d("PLAY_COUNT", "Skip after seek; set lastPos=$currentPos")
@@ -516,20 +463,18 @@ class MusicService : Service() {
 
         if (playedPercentage >= 90f && isNaturalProgress) {
             hasCountedAsPlayed = true
-            Log.d("PLAY_COUNT", "✅ COUNTED!")
+            Log.d("PLAY_COUNT", "COUNTED!")
             ListeningStats.incrementPlayCount(this, currentTrackPath!!)
-            // Запись события в историю для графиков
+
             try {
                 val ct = currentTrack
                 var genre: String? = null
-                try {
-                    if (currentTrackPath != null) {
-                        val r = MediaMetadataRetriever()
-                        r.setDataSource(currentTrackPath)
-                        genre = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
-                        r.release()
-                    }
-                } catch (_: Exception) {}
+                currentTrackPath?.let {
+                    val r = MediaMetadataRetriever()
+                    r.setDataSource(it)
+                    genre = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                    r.release()
+                }
                 PlayHistory.append(
                     this,
                     PlayHistory.PlayEvent(
@@ -542,7 +487,7 @@ class MusicService : Service() {
                         percent = 100f
                     )
                 )
-            } catch (_: Exception) { }
+            } catch (_: Exception) {}
 
             Intent("com.arotter.music.STATS_UPDATED").apply {
                 setPackage(applicationContext.packageName)
@@ -564,7 +509,7 @@ class MusicService : Service() {
     }
 
     private fun stopService() {
-        // Перед остановкой — зафиксируем процент прослушивания текущего трека, если не было перемоток и не было засчитано прослушивание
+        // Фиксируем процент прослушивания при остановке
         try {
             if (currentTrackPath != null && mediaPlayer != null && !hasSeekedThisTrack && !hasCountedAsPlayed) {
                 val dur = getDuration()
@@ -596,7 +541,6 @@ class MusicService : Service() {
         } catch (_: Exception) {}
 
         checkAndIncrementPlayCount()
-
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
@@ -604,12 +548,12 @@ class MusicService : Service() {
         currentTrack = null
         currentTrackPath = null
         hasCountedAsPlayed = false
-
         mediaSession.isActive = false
 
         Intent("com.arotter.music.TRACK_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
+
         Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
@@ -627,7 +571,7 @@ class MusicService : Service() {
         try {
             unregisterReceiver(playbackModeReceiver)
         } catch (e: Exception) {
-            // Receiver не был зарегистрирован
+            // Игнорируем, если не был зарегистрирован
         }
         mediaSession.release()
         super.onDestroy()
@@ -653,7 +597,6 @@ class MusicService : Service() {
         CoroutineScope(Dispatchers.IO).launch {
             val bitmap = loadAlbumArt()
             val notification = buildNotification(bitmap)
-
             withContext(Dispatchers.Main) {
                 startForeground(NOTIFICATION_ID, notification)
             }
@@ -663,8 +606,9 @@ class MusicService : Service() {
     private fun loadAlbumArt(): Bitmap? {
         try {
             currentTrack?.let { track ->
-                val cacheKey = "notif_art_" + (track.path ?: track.albumId?.toString() ?: track.name ?: "unknown")
+                val cacheKey = "notif_art_${track.path ?: track.albumId ?: track.name ?: "unknown"}"
                 DiskImageCache.getBitmap(cacheKey)?.let { return it }
+
                 val retriever = MediaMetadataRetriever()
                 track.path?.let { retriever.setDataSource(it) }
                 val data = retriever.embeddedPicture
@@ -677,10 +621,7 @@ class MusicService : Service() {
                 retriever.release()
 
                 track.albumId?.let { albumId ->
-                    val uri = ContentUris.withAppendedId(
-                        MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
-                        albumId
-                    )
+                    val uri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
                     contentResolver.openInputStream(uri)?.use { input ->
                         val bmp = BitmapFactory.decodeStream(input)
                         if (bmp != null) DiskImageCache.putBitmap(cacheKey, bmp)
@@ -696,54 +637,39 @@ class MusicService : Service() {
 
     private fun buildNotification(albumArt: Bitmap?): Notification {
         val track = currentTrack
-
-        // Playback mode toggle action (leftmost)
         val modeIcon = when (playbackMode) {
             "REPEAT_ONE" -> R.drawable.ic_repeat_on
             "SHUFFLE" -> R.drawable.ic_shuffle
             "STOP_AFTER" -> R.drawable.ic_stop_after
             else -> R.drawable.ic_repeat_off
         }
+
         val modeIntent = PendingIntent.getService(
-            this,
-            0,
+            this, 0,
             Intent(this, MusicService::class.java).setAction(ACTION_SET_MODE),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val playPauseIntent = if (isPlaying) {
-            PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).setAction(ACTION_PAUSE),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-        } else {
-            PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).setAction(ACTION_PLAY),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-        }
+        val playPauseIntent = PendingIntent.getService(
+            this, 0,
+            Intent(this, MusicService::class.java).setAction(if (isPlaying) ACTION_PAUSE else ACTION_PLAY),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val nextIntent = PendingIntent.getService(
-            this,
-            0,
+            this, 0,
             Intent(this, MusicService::class.java).setAction(ACTION_NEXT),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val previousIntent = PendingIntent.getService(
-            this,
-            0,
+            this, 0,
             Intent(this, MusicService::class.java).setAction(ACTION_PREVIOUS),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val closeIntent = PendingIntent.getService(
-            this,
-            0,
+            this, 0,
             Intent(this, MusicService::class.java).setAction(ACTION_CLOSE),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -752,25 +678,27 @@ class MusicService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val contentIntent = PendingIntent.getActivity(
-            this,
-            0,
-            openIntent,
+            this, 0, openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Prepare rounded large icon (either album art or placeholder rendered to proper size)
-        val notifW = try { resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width) } catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
-        val notifH = try { resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_height) } catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
-        val radiusPx = (12f * resources.displayMetrics.density)
+        val notifW = try { resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width) }
+        catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
+
+        val notifH = try { resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_height) }
+        catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
+
+        val radiusPx = 12f * resources.displayMetrics.density
+
         val largeIcon: Bitmap? = try {
             if (albumArt != null) {
                 createRoundedBitmapCropped(albumArt, notifW, notifH, radiusPx)
             } else {
                 val drawable = androidx.appcompat.content.res.AppCompatResources.getDrawable(this, R.drawable.ic_album_placeholder)
-                if (drawable != null) {
-                    val ph = drawableToSizedBitmap(drawable, notifW, notifH)
+                drawable?.let {
+                    val ph = drawableToSizedBitmap(it, notifW, notifH)
                     createRoundedBitmapCropped(ph, notifW, notifH, radiusPx)
-                } else null
+                }
             }
         } catch (_: Exception) { null }
 
@@ -791,7 +719,6 @@ class MusicService : Service() {
             .addAction(R.drawable.ic_close, "Close", closeIntent)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
-                    // Show Mode, Previous, Play/Pause in compact view
                     .setShowActionsInCompactView(0, 1, 2)
                     .setMediaSession(mediaSession.sessionToken)
             )
@@ -816,16 +743,20 @@ class MusicService : Service() {
             isFilterBitmap = true
             isDither = true
         }
-        val shader = android.graphics.BitmapShader(src, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
-        val scale = maxOf(outW.toFloat() / src.width, outH.toFloat() / src.height)
+
+        val scale = max(outW.toFloat() / src.width, outH.toFloat() / src.height)
         val dx = (outW - src.width * scale) / 2f
         val dy = (outH - src.height * scale) / 2f
+
         val matrix = android.graphics.Matrix().apply {
             setScale(scale, scale)
             postTranslate(dx, dy)
         }
+
+        val shader = android.graphics.BitmapShader(src, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
         shader.setLocalMatrix(matrix)
         paint.shader = shader
+
         val rect = android.graphics.RectF(0f, 0f, outW.toFloat(), outH.toFloat())
         canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
         return output

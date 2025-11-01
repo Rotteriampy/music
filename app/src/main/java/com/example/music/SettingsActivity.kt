@@ -16,6 +16,7 @@ import android.widget.EditText
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.ImageView
+import android.widget.Switch
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -89,6 +90,19 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<LinearLayout>(R.id.statsSettingsButton).setOnClickListener {
             val intent = Intent(this, StatsSettingsActivity::class.java)
             startActivity(intent)
+        }
+
+        // Переключатель: Продолжать воспроизведение с начала
+        val prefs = getSharedPreferences("player_prefs", MODE_PRIVATE)
+        val swContinue = findViewById<Switch>(R.id.switchContinueFromStart)
+        val row = findViewById<LinearLayout>(R.id.continuePlaybackRow)
+        val initial = prefs.getBoolean("continue_from_start", false)
+        swContinue.isChecked = initial
+        swContinue.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("continue_from_start", isChecked).apply()
+        }
+        row.setOnClickListener {
+            swContinue.isChecked = !swContinue.isChecked
         }
     }
 }

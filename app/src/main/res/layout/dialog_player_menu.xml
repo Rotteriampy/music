@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/dialog_background">
+
+    <!-- Название трека -->
+    <TextView
+        android:id="@+id/tvMenuTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Название трека"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="@color/colorTextPrimary"
+        android:paddingBottom="16dp" />
+
+    <!-- Разделительная линия -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/colorDivider"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Строка с иконками действий -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- Избранное -->
+        <ImageView
+            android:id="@+id/ivFavorite"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_favorite_border"
+            android:layout_marginHorizontal="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
+
+        <!-- Редактировать теги -->
+        <ImageView
+            android:id="@+id/ivEdit"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_edit"
+            android:layout_marginHorizontal="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
+
+        <!-- Информация о треке -->
+        <ImageView
+            android:id="@+id/ivInfo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_info"
+            android:layout_marginHorizontal="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
+
+        <!-- Поделиться -->
+        <ImageView
+            android:id="@+id/ivShare"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_share"
+            android:layout_marginHorizontal="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
+
+        <!-- Удалить -->
+        <ImageView
+            android:id="@+id/ivDelete"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_delete"
+            android:layout_marginHorizontal="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
+
+    </LinearLayout>
+
+    <!-- Очередь -->
+    <LinearLayout
+        android:id="@+id/tvQueue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_queue_music"
+            android:layout_marginStart="-2dp"
+            android:layout_marginEnd="12dp"
+            android:tint="@color/colorIconTint" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Очередь"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
+    <!-- Добавить в очередь -->
+    <LinearLayout
+        android:id="@+id/tvAddToQueue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_queue"
+            android:layout_marginStart="-2dp"
+            android:layout_marginEnd="12dp"
+            android:tint="@color/colorIconTint" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Добавить в очередь"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
+    <!-- Добавить в плейлист -->
+    <LinearLayout
+        android:id="@+id/tvAddToPlaylist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_playlist_add"
+            android:layout_marginEnd="12dp"
+            android:tint="@color/colorIconTint" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Добавить в плейлист"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
+    <!-- Установить как рингтон -->
+    <LinearLayout
+        android:id="@+id/tvSetAsRingtone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_ringtone"
+            android:layout_marginStart="-2dp"
+            android:layout_marginEnd="12dp"
+            android:tint="@color/colorIconTint" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Установить как рингтон"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
+</LinearLayout>

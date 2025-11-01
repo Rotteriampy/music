@@ -69,6 +69,39 @@
 
     </LinearLayout>
 
+    <!-- Переключатель: Продолжать воспроизведение с начала -->
+    <LinearLayout
+        android:id="@+id/continuePlaybackRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/settings_item_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_repeat_off"
+            android:tint="@color/colorIconTint"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Продолжать воспроизведение с начала"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+        <Switch
+            android:id="@+id/switchContinueFromStart"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
     <!-- Кнопка Назад с полупрозрачным серым фоном и ярким контуром -->
     <Button
         android:id="@+id/btnBack"

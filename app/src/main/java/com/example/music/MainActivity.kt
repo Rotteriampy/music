@@ -45,6 +45,8 @@ import androidx.activity.result.ActivityResultLauncher
 import android.animation.ObjectAnimator
 import android.view.animation.LinearInterpolator
 import androidx.lifecycle.lifecycleScope
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -312,6 +314,7 @@ class MainActivity : AppCompatActivity() {
 
         setupMiniPlayer()
         setupMiniPlayerUpdates()
+        applyBottomInsetsForGestureNav()
 
         btnReorderAlbums.setOnClickListener { toggleAlbumReorderMode() }
         btnReorderArtists.setOnClickListener { toggleArtistReorderMode() }
@@ -526,6 +529,22 @@ class MainActivity : AppCompatActivity() {
         val bottom = mainLayout.paddingBottom
         if (mainLayout.paddingTop != statusBarHeight) {
             mainLayout.setPadding(left, statusBarHeight, right, bottom)
+        }
+    }
+
+    private fun applyBottomInsetsForGestureNav() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ViewCompat.setOnApplyWindowInsetsListener(mainLayout) { v, insets ->
+                val sysBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                val left = v.paddingLeft
+                val top = v.paddingTop
+                val right = v.paddingRight
+                // Добавляем нижний отступ равный навигационному инсетy, чтобы мини-плеер не перекрывался
+                if (v.paddingBottom != sysBars.bottom) {
+                    v.setPadding(left, top, right, sysBars.bottom)
+                }
+                insets
+            }
         }
     }
 

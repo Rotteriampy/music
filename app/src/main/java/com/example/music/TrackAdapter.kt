@@ -9,6 +9,7 @@ import android.media.MediaMetadataRetriever
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.util.TypedValue
+import android.view.MotionEvent
 
 import android.provider.MediaStore
 import android.view.LayoutInflater
@@ -76,6 +77,29 @@ class TrackAdapter(
 
             dragHandle?.visibility = if (adapter.isReorderMode) View.VISIBLE else View.GONE
             deleteButton?.visibility = if (adapter.isReorderMode && adapter.isFromPlaylist) View.VISIBLE else View.GONE
+
+            // Enable drag start from handle (or long-press on item if no handle) in reorder mode
+            if (adapter.isReorderMode) {
+                dragHandle?.setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        adapter.onStartDrag?.invoke(this)
+                        return@setOnTouchListener true
+                    }
+                    false
+                }
+                if (dragHandle == null) {
+                    itemView.setOnLongClickListener {
+                        adapter.onStartDrag?.invoke(this)
+                        true
+                    }
+                } else {
+                    // Avoid interference when handle exists; no long-press on whole item
+                    itemView.setOnLongClickListener(null)
+                }
+            } else {
+                dragHandle?.setOnTouchListener(null)
+                itemView.setOnLongClickListener(null)
+            }
 
             loadTrackAvatar(context, track, trackAvatar)
 
@@ -404,7 +428,7 @@ class TrackAdapter(
             return
         }
 
-        val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_playlist_select, null)
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_playlist_select_styled, null)
         val container = dialogView.findViewById<LinearLayout>(R.id.playlistContainer)
 
         val selectable = TypedValue().also {
@@ -416,9 +440,13 @@ class TrackAdapter(
         playlists.forEach { playlist ->
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(dp(12, context), dp(12, context), dp(12, context), dp(12, context))
+                setPadding(dp(16, context), dp(12, context), dp(16, context), dp(12, context))
                 setBackgroundResource(selectable.resourceId)
                 gravity = android.view.Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
             }
 
             val icon = ImageView(context).apply {
@@ -432,7 +460,7 @@ class TrackAdapter(
                 text = playlist.name
                 setTextColor(ContextCompat.getColor(context, R.color.colorTextPrimary))
                 textSize = 16f
-                val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 lp.marginStart = dp(12, context)
                 layoutParams = lp
             }
