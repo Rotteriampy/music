@@ -1,108 +1,191 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/themeSettingsLayout"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
-    <!-- Заголовок -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Настройки темы"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@android:color/white"
-        android:layout_marginBottom="24dp"
-        android:layout_marginStart="8dp" />
-
-    <!-- Палитра цветов с полупрозрачным фоном -->
     <LinearLayout
+        android:id="@+id/themeSettingsLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/settings_section_background"
-        android:padding="16dp"
-        android:layout_marginBottom="16dp">
+        android:padding="16dp">
 
+        <!-- Заголовок -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Цвета темы"
-            android:textSize="18sp"
+            android:text="Настройки темы"
+            android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:layout_marginBottom="16dp" />
+            android:textColor="@color/colorTextPrimary"
+            android:layout_marginBottom="24dp"
+            android:layout_marginStart="8dp" />
 
+        <!-- Палитра цветов -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/settings_section_background"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Цвета темы"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Градиент: начало"
+                    android:textColor="@color/colorTextPrimary" />
+
+                <Button
+                    android:id="@+id/btnPickPrimaryGradStart"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"
+                    android:text="#000000"
+                    android:background="@drawable/color_button_background" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Градиент: конец"
+                    android:textColor="@color/colorTextPrimary" />
+
+                <Button
+                    android:id="@+id/btnPickPrimaryGradEnd"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"
+                    android:text="#000000"
+                    android:background="@drawable/color_button_background" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Выделяющий"
+                    android:textColor="@color/colorTextPrimary" />
+
+                <Button
+                    android:id="@+id/btnPickAccent"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"
+                    android:text="#FFA500"
+                    android:background="@drawable/color_button_background" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Готовые градиенты -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/settings_section_background"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Готовые темы"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Темные темы в один ряд -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="none">
+                <LinearLayout
+                    android:id="@+id/darkPresetsContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- Светлые темы в один ряд -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="none">
+                <LinearLayout
+                    android:id="@+id/lightPresetsContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+        </LinearLayout>
+
+        <!-- Тумблер темы -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="12dp">
+            android:layout_marginTop="16dp"
+            android:background="@drawable/settings_section_background"
+            android:padding="12dp">
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Градиент: начало"
-                android:textColor="@android:color/white" />
-            <Button
-                android:id="@+id/btnPickPrimaryGradStart"
-                android:layout_width="120dp"
-                android:layout_height="40dp"
-                android:text="#000000"
-                android:background="@drawable/color_button_background" />
+                android:text="Тема"
+                android:textColor="@color/colorTextPrimary"
+                android:textSize="16sp" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switchThemeMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Тёмная"
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
-        <LinearLayout
+        <Button
+            android:id="@+id/btnBack"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="12dp">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Градиент: конец"
-                android:textColor="@android:color/white" />
-            <Button
-                android:id="@+id/btnPickPrimaryGradEnd"
-                android:layout_width="120dp"
-                android:layout_height="40dp"
-                android:text="#000000"
-                android:background="@drawable/color_button_background" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Выделяющий"
-                android:textColor="@android:color/white" />
-            <Button
-                android:id="@+id/btnPickAccent"
-                android:layout_width="120dp"
-                android:layout_height="40dp"
-                android:text="#FFA500"
-                android:background="@drawable/color_button_background" />
-        </LinearLayout>
+            android:text="Назад"
+            android:background="@drawable/card_background_light2"
+            android:textColor="@color/colorTextPrimary"
+            android:layout_marginTop="32dp"
+            android:textStyle="bold" />
 
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnBack"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Назад"
-        android:background="@drawable/card_background_light2"
-        android:textColor="@android:color/white"
-        android:textStyle="bold" />
-
-</LinearLayout>
+</ScrollView>

@@ -508,11 +508,26 @@ class GenreActivity : AppCompatActivity() {
     }
 
     private fun saveCustomGenreData() {
-        val prefs = getSharedPreferences("custom_genres", MODE_PRIVATE)
+        val prefs = getSharedPreferences("custom_genres", MODE_PRIVATE) // Исправлено: custom_genres
         val editor = prefs.edit()
-        editor.putString("genre_${genreName}_name", customGenreName)
-        editor.putString("genre_${genreName}_cover", customGenreCover?.toString())
+        editor.putString("genre_${genreName}_name", customGenreName) // Исправлено: genre_
+        editor.putString("genre_${genreName}_cover", customGenreCover?.toString()) // Исправлено: genre_
+        editor.putLong("genre_${genreName}_timestamp", System.currentTimeMillis()) // Добавлено: временная метка
         editor.apply()
+
+        updateGenreUI()
+        loadGenreBackground()
+
+        // Устанавливаем результат для обновления главного экрана
+        setResult(RESULT_OK)
+
+        // Очищаем кэш для этого жанра
+        DiskImageCache.removeByPrefix("genre_${genreName}") // Исправлено: genre_
+
+        // Если имя изменилось, очищаем кэш и для старого имени
+        if (customGenreName != genreName) {
+            DiskImageCache.removeByPrefix("genre_${customGenreName}") // Исправлено: genre_
+        }
     }
 
     private fun loadCustomGenreData() {

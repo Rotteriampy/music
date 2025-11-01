@@ -177,6 +177,10 @@ class EditTrackActivity : AppCompatActivity() {
         previewAlbum = findViewById(R.id.previewAlbum)
         btnReset = findViewById(R.id.btnReset)
         btnApplyToAll = findViewById(R.id.btnApplyToAll)
+
+        // Убираем возможный tint/фильтр на предпросмотре обложки
+        previewCover.imageTintList = null
+        previewCover.clearColorFilter()
     }
 
     private fun setupClickListeners() {

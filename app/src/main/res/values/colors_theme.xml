@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorTextPrimary">#000000</color>
+    <color name="colorIconTint">#000000</color>
+    <color name="colorDialogBg">#F2F2F2</color>
+    <color name="colorTextSecondary">#7F000000</color>
+    <color name="colorDialogStroke">#333333</color>
+    <color name="popup_bg">#F4F4F4</color>
+    <color name="popup_divider">#666666</color>
+    <color name="popup_text">#000000</color>
+    <color name="colorDivider">#33000000</color>
+</resources>

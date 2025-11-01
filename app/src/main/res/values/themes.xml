@@ -19,8 +19,8 @@
         <item name="android:backgroundDimAmount">0.7</item>
     </style>
     <style name="PopupMenuStyle" parent="ThemeOverlay.Material3.Dark">
-        <item name="android:colorBackground">#FF424242</item>
-        <item name="android:textColor">@android:color/white</item>
+        <item name="android:colorBackground">@color/popup_bg</item>
+        <item name="android:textColor">@color/popup_text</item>
         <item name="android:itemBackground">@drawable/popup_menu_item_background</item>
         <item name="android:listDivider">@drawable/popup_menu_divider</item>
     </style>

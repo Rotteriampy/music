@@ -15,14 +15,14 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:gravity="center"
-        android:textColor="@android:color/white"
+        android:textColor="@color/colorTextPrimary"
         android:paddingBottom="16dp" />
 
     <!-- Разделительная линия -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#33FFFFFF"
+        android:background="@color/colorDivider"
         android:layout_marginBottom="16dp" />
 
     <!-- Строка с иконками действий -->
@@ -40,7 +40,8 @@
             android:padding="12dp"
             android:src="@drawable/ic_favorite_border"
             android:layout_marginHorizontal="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
 
         <!-- Редактировать теги -->
         <ImageView
@@ -50,7 +51,8 @@
             android:padding="12dp"
             android:src="@drawable/ic_edit"
             android:layout_marginHorizontal="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
 
         <!-- Информация о треке -->
         <ImageView
@@ -60,7 +62,8 @@
             android:padding="12dp"
             android:src="@drawable/ic_info"
             android:layout_marginHorizontal="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
 
         <!-- Поделиться -->
         <ImageView
@@ -70,7 +73,8 @@
             android:padding="12dp"
             android:src="@drawable/ic_share"
             android:layout_marginHorizontal="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
 
         <!-- Удалить -->
         <ImageView
@@ -80,7 +84,8 @@
             android:padding="12dp"
             android:src="@drawable/ic_delete"
             android:layout_marginHorizontal="4dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless" />
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="@color/colorIconTint" />
 
     </LinearLayout>
 
@@ -100,7 +105,7 @@
             android:src="@drawable/ic_queue"
             android:layout_marginStart="-2dp"
             android:layout_marginEnd="12dp"
-            android:tint="@android:color/white" />
+            android:tint="@color/colorIconTint" />
 
         <TextView
             android:layout_width="0dp"
@@ -108,7 +113,7 @@
             android:layout_weight="1"
             android:text="Добавить в очередь"
             android:textSize="16sp"
-            android:textColor="@android:color/white" />
+            android:textColor="@color/colorTextPrimary" />
 
     </LinearLayout>
 
@@ -127,7 +132,7 @@
             android:layout_height="24dp"
             android:src="@drawable/ic_playlist_add"
             android:layout_marginEnd="12dp"
-            android:tint="@android:color/white" />
+            android:tint="@color/colorIconTint" />
 
         <TextView
             android:layout_width="0dp"
@@ -135,7 +140,7 @@
             android:layout_weight="1"
             android:text="Добавить в плейлист"
             android:textSize="16sp"
-            android:textColor="@android:color/white" />
+            android:textColor="@color/colorTextPrimary" />
 
     </LinearLayout>
 
@@ -155,7 +160,7 @@
             android:src="@drawable/ic_ringtone"
             android:layout_marginStart="-2dp"
             android:layout_marginEnd="12dp"
-            android:tint="@android:color/white" />
+            android:tint="@color/colorIconTint" />
 
         <TextView
             android:layout_width="0dp"
@@ -163,7 +168,7 @@
             android:layout_weight="1"
             android:text="Установить как рингтон"
             android:textSize="16sp"
-            android:textColor="@android:color/white" />
+            android:textColor="@color/colorTextPrimary" />
 
     </LinearLayout>
 

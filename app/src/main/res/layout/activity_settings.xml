@@ -13,7 +13,7 @@
         android:text="Настройки"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="@android:color/white"
+        android:textColor="@color/colorTextPrimary"
         android:layout_marginBottom="24dp"
         android:layout_marginStart="8dp" />
 
@@ -31,7 +31,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_palette"
-            android:tint="@android:color/white"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="16dp" />
 
         <TextView
@@ -39,7 +39,7 @@
             android:layout_height="wrap_content"
             android:text="Настройки темы"
             android:textSize="16sp"
-            android:textColor="@android:color/white" />
+            android:textColor="@color/colorTextPrimary" />
 
     </LinearLayout>
 
@@ -57,7 +57,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_stats"
-            android:tint="@android:color/white"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="16dp" />
 
         <TextView
@@ -65,7 +65,7 @@
             android:layout_height="wrap_content"
             android:text="Управление статистикой"
             android:textSize="16sp"
-            android:textColor="@android:color/white" />
+            android:textColor="@color/colorTextPrimary" />
 
     </LinearLayout>
 
@@ -77,7 +77,7 @@
         android:text="Назад"
         android:layout_marginTop="80dp"
         android:background="@drawable/card_background_light2"
-        android:textColor="@android:color/white"
+        android:textColor="@color/colorTextPrimary"
         android:textStyle="bold" />
 
 </LinearLayout>

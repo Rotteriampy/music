@@ -7,6 +7,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.util.TypedValue
 
 import android.provider.MediaStore
 import android.view.LayoutInflater
@@ -17,6 +19,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -112,8 +115,8 @@ class TrackAdapter(
                 trackName.setTextColor(accent)
                 trackArtist.setTextColor(accent)
             } else {
-                trackName.setTextColor(Color.WHITE)
-                trackArtist.setTextColor(Color.parseColor("#B0B0B0"))
+                trackName.setTextColor(ContextCompat.getColor(context, R.color.colorTextPrimary))
+                trackArtist.setTextColor(ContextCompat.getColor(context, R.color.colorTextSecondary))
             }
         }
     }
@@ -138,8 +141,8 @@ class TrackAdapter(
                 holder.trackName.setTextColor(accent)
                 holder.trackArtist.setTextColor(accent)
             } else {
-                holder.trackName.setTextColor(android.graphics.Color.WHITE)
-                holder.trackArtist.setTextColor(android.graphics.Color.parseColor("#B0B0B0"))
+                holder.trackName.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorTextPrimary))
+                holder.trackArtist.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.colorTextSecondary))
             }
         } else {
             super.onBindViewHolder(holder, position, payloads)
@@ -297,7 +300,7 @@ class TrackAdapter(
         }
 
         dialog.show()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     }
 
     private fun updateFavoriteIcon(imageView: ImageView, isFavorite: Boolean) {
@@ -401,23 +404,65 @@ class TrackAdapter(
             return
         }
 
-        val playlistNames = playlists.map { it.name }.toTypedArray()
+        val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_playlist_select, null)
+        val container = dialogView.findViewById<LinearLayout>(R.id.playlistContainer)
 
-        AlertDialog.Builder(context)
-            .setTitle("Добавить в плейлист")
-            .setItems(playlistNames) { _, which ->
-                val selectedPlaylist = playlists[which]
+        val selectable = TypedValue().also {
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
+        }
 
-                if (selectedPlaylist.tracks.any { it.path == track.path }) {
+        var dialog: AlertDialog? = null
+
+        playlists.forEach { playlist ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(dp(12, context), dp(12, context), dp(12, context), dp(12, context))
+                setBackgroundResource(selectable.resourceId)
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+
+            val icon = ImageView(context).apply {
+                setImageResource(R.drawable.ic_playlist_add)
+                setColorFilter(ContextCompat.getColor(context, R.color.colorIconTint))
+                val lp = LinearLayout.LayoutParams(dp(24, context), dp(24, context))
+                layoutParams = lp
+            }
+
+            val title = TextView(context).apply {
+                text = playlist.name
+                setTextColor(ContextCompat.getColor(context, R.color.colorTextPrimary))
+                textSize = 16f
+                val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                lp.marginStart = dp(12, context)
+                layoutParams = lp
+            }
+
+            row.addView(icon)
+            row.addView(title)
+
+            row.setOnClickListener {
+                val already = playlist.tracks.any { it.path == track.path }
+                if (already) {
                     Toast.makeText(context, "Трек уже в плейлисте", Toast.LENGTH_SHORT).show()
                 } else {
-                    PlaylistManager.addTrackToPlaylist(context, selectedPlaylist.id, track)
-                    Toast.makeText(context, "Добавлено в ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                    PlaylistManager.addTrackToPlaylist(context, playlist.id, track)
+                    Toast.makeText(context, "Добавлено в ${playlist.name}", Toast.LENGTH_SHORT).show()
                 }
+                dialog?.dismiss()
             }
-            .setNegativeButton("Отмена", null)
-            .show()
+
+            container.addView(row)
+        }
+
+        dialog = AlertDialog.Builder(context)
+            .setView(dialogView)
+            .create()
+
+        dialog?.show()
+        dialog?.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     }
+
+    private fun dp(value: Int, context: Context): Int = (value * context.resources.displayMetrics.density).toInt()
 
     private fun showEditTagsDialog(track: Track, position: Int, context: Context) {
         val intent = Intent(context, EditTrackActivity::class.java)

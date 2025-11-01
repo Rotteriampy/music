@@ -9,6 +9,10 @@ import android.content.Intent
 import android.app.AlertDialog
 import androidx.core.content.FileProvider
 import android.graphics.drawable.GradientDrawable
+import android.view.View
+import android.widget.Spinner
+import android.widget.ArrayAdapter
+import android.widget.AdapterView
 
 class StatsSettingsActivity : AppCompatActivity() {
 
@@ -24,6 +28,9 @@ class StatsSettingsActivity : AppCompatActivity() {
         val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
         ThemeManager.applyTransparentStatusBarWithBackground(window, darkIcons, this)
         ThemeManager.showSystemBars(window, this)
+        // Chart type spinner
+        initChartTypeSpinner()
+
         applyThemeGradient()
     }
 
@@ -62,10 +69,11 @@ class StatsSettingsActivity : AppCompatActivity() {
     }
 
     private fun exportStats() {
-        val file = File(getExternalFilesDir(null), "listening_stats.json")
-        if (ListeningStats.exportToFile(this, file)) {
+        // Полный снимок статистики (прослушивания, использование приложения, история для графиков)
+        val file = File(getExternalFilesDir(null), "stats_full.json")
+        if (StatsBackup.exportAll(this, file)) {
             AlertDialog.Builder(this)
-                .setTitle("Статистика экспортирована")
+                .setTitle("Экспорт выполнен")
                 .setMessage("Файл сохранён:\n${file.absolutePath}\n\nХотите поделиться?")
                 .setPositiveButton("Поделиться") { _, _ ->
                     try {
@@ -79,7 +87,7 @@ class StatsSettingsActivity : AppCompatActivity() {
                             putExtra(Intent.EXTRA_STREAM, uri)
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                        startActivity(Intent.createChooser(shareIntent, "Экспорт статистики"))
+                        startActivity(Intent.createChooser(shareIntent, "Поделиться статистикой"))
                     } catch (e: Exception) {
                         Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
@@ -99,6 +107,52 @@ class StatsSettingsActivity : AppCompatActivity() {
             intArrayOf(gradStart, gradEnd)
         )
         mainLayout.background = gd
+    }
+
+    private fun initChartTypeSpinner() {
+        val sp: Spinner = findViewById(R.id.spChartTypeSettings)
+        val row: LinearLayout = findViewById(R.id.chartTypeRow)
+        val tvValue: android.widget.TextView = findViewById(R.id.chartTypeValue)
+        val ivArrow: android.widget.ImageView = findViewById(R.id.chartTypeArrow)
+        val items = listOf(
+            "Линия" to "LINEAR",
+            "Плавная линия" to "CUBIC",
+            "Линия с заливкой" to "FILLED",
+            "Плавная с заливкой" to "CUBIC_FILLED",
+            "Ступенчатая" to "STEPPED"
+        )
+
+        val adapter = ArrayAdapter<String>(
+            this,
+            R.layout.spinner_item_white,
+            items.map { it.first }
+        ).apply { setDropDownViewResource(R.layout.spinner_dropdown_item_white) }
+        sp.adapter = adapter
+
+        val prefs = getSharedPreferences("stats_prefs", MODE_PRIVATE)
+        val saved = prefs.getString("chart_style", "LINEAR")
+        val selIdx = items.indexOfFirst { it.second == saved }.let { if (it >= 0) it else 0 }
+        sp.setSelection(selIdx)
+        tvValue.text = items[selIdx].first
+
+        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val code = items[position].second
+                prefs.edit().putString("chart_style", code).apply()
+                tvValue.text = items[position].first
+                // уведомим экран статистики при открытом приложении
+                sendBroadcast(Intent("com.example.music.STATS_UPDATED"))
+                // стрелка вниз после выбора
+                ivArrow.setImageResource(R.drawable.ic_arrow_down)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        row.setOnClickListener {
+            // стрелка вверх при открытии
+            ivArrow.setImageResource(R.drawable.ic_arrow_up)
+            sp.performClick()
+        }
     }
 
     private fun importStats() {
@@ -127,7 +181,7 @@ class StatsSettingsActivity : AppCompatActivity() {
                         val tempFile = File(cacheDir, "temp_import.json")
                         tempFile.writeText(jsonString)
 
-                        val (success, message) = ListeningStats.importFromFile(this, tempFile)
+                        val (success, message) = StatsBackup.importAll(this, tempFile)
 
                         if (success) {
                             Toast.makeText(this, message, Toast.LENGTH_LONG).show()

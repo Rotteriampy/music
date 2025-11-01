@@ -59,6 +59,9 @@ class ArtistAdapter(
 
         // Показываем название (кастомное или оригинальное)
         holder.artistName.text = customName ?: artist.name
+        // Цвета по умолчанию из темы
+        holder.artistName.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextPrimary))
+        holder.tracksInfo.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextSecondary))
 
         // Сбрасываем предыдущую загрузку и ставим плейсхолдер
         jobs.remove(holder.coverImage)?.cancel()
@@ -69,10 +72,11 @@ class ArtistAdapter(
         if (artist.name.equals("Unknown", ignoreCase = true) || artist.name.equals("<unknown>", ignoreCase = true)) {
             holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
         } else if (customCoverUri != null) {
-            val cacheKey = "artist_custom_uri_" + customCoverUri
+            // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+            val cacheKey = getArtistCacheKey(artist.name, "custom_uri_${customCoverUri}")
             holder.coverImage.tag = cacheKey
             val job = ioScope.launch {
-                val roundedKey = cacheKey + "_r128"
+                val roundedKey = "${cacheKey}_r128"
                 var rounded = DiskImageCache.getBitmap(roundedKey)
                 if (rounded == null) {
                     var bmp = DiskImageCache.getBitmap(cacheKey)
@@ -94,19 +98,26 @@ class ArtistAdapter(
                 withContext(Dispatchers.Main) {
                     if (holder.coverImage.tag == cacheKey && rounded != null) {
                         holder.coverImage.setImageBitmap(rounded)
+                        // Есть аватарка -> белые тексты
+                        holder.artistName.setTextColor(android.graphics.Color.WHITE)
+                        holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
                     }
                 }
             }
             jobs[holder.coverImage] = job
         } else {
-            val prefs = context.getSharedPreferences("custom_artists", Context.MODE_PRIVATE)
             val cachedTrackPath = prefs.getString("artist_${artist.name}_cover_track", null)
             var set = false
             if (cachedTrackPath != null) {
-                val key = "artist_cover_from_track_" + cachedTrackPath
+                // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                val key = getArtistCacheKey(artist.name, "cover_track_${cachedTrackPath}")
                 holder.coverImage.tag = key
                 val job = ioScope.launch {
-                    val ok = loadCoverAsyncRounded(cachedTrackPath, holder.coverImage, key)
+                    val ok = loadCoverAsyncRounded(cachedTrackPath, holder.coverImage, key) {
+                        // Белые тексты при успешной загрузке
+                        holder.artistName.setTextColor(android.graphics.Color.WHITE)
+                        holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
+                    }
                     if (ok) set = true
                 }
                 jobs[holder.coverImage] = job
@@ -115,10 +126,14 @@ class ArtistAdapter(
             if (!set) {
                 val firstWithPath = artist.tracks.firstOrNull { it.path != null }?.path
                 if (firstWithPath != null) {
-                    val key = "artist_cover_from_track_" + firstWithPath
+                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                    val key = getArtistCacheKey(artist.name, "cover_track_${firstWithPath}")
                     holder.coverImage.tag = key
                     val job = ioScope.launch {
-                        val ok = loadCoverAsyncRounded(firstWithPath, holder.coverImage, key)
+                        val ok = loadCoverAsyncRounded(firstWithPath, holder.coverImage, key) {
+                            holder.artistName.setTextColor(android.graphics.Color.WHITE)
+                            holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
+                        }
                         if (ok) {
                             prefs.edit().putString("artist_${artist.name}_cover_track", firstWithPath).apply()
                         }
@@ -128,7 +143,8 @@ class ArtistAdapter(
             }
             if (!set) {
                 val displayName = (customName ?: artist.name).trim()
-                val letterKey = "artist_letter_${displayName}_r128"
+                // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                val letterKey = getArtistCacheKey(artist.name, "letter_cover")
                 var rounded = DiskImageCache.getBitmap(letterKey)
                 if (rounded == null) {
                     val bmp = generateLetterCover(displayName)
@@ -136,6 +152,9 @@ class ArtistAdapter(
                     DiskImageCache.putBitmap(letterKey, rounded)
                 }
                 holder.coverImage.setImageBitmap(rounded)
+                // Буквенная обложка — тоже аватарка: делаем тексты белыми
+                holder.artistName.setTextColor(android.graphics.Color.WHITE)
+                holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
             }
         }
 
@@ -156,7 +175,7 @@ class ArtistAdapter(
         holder.tracksInfo.text = info
     }
 
-    private suspend fun loadCoverAsyncRounded(trackPath: String, imageView: ImageView, cacheKey: String): Boolean {
+    private suspend fun loadCoverAsyncRounded(trackPath: String, imageView: ImageView, cacheKey: String, onSuccess: (() -> Unit)? = null): Boolean {
         val roundedKey = cacheKey + "_r128"
         var rounded = DiskImageCache.getBitmap(roundedKey)
         if (rounded == null) {
@@ -182,6 +201,7 @@ class ArtistAdapter(
         return withContext(Dispatchers.Main) {
             if (imageView.tag == cacheKey && rounded != null) {
                 imageView.setImageBitmap(rounded)
+                try { onSuccess?.invoke() } catch (_: Exception) {}
                 true
             } else false
         }
@@ -246,5 +266,15 @@ class ArtistAdapter(
     private fun reorderUnknownFirst(src: List<Artist>): List<Artist> {
         val (unknowns, others) = src.partition { it.name.equals("Unknown", true) || it.name.equals("<unknown>", true) }
         return unknowns + others
+    }
+    // В ArtistAdapter.kt
+    private fun getArtistTimestamp(artistName: String): Long {
+        val prefs = context.getSharedPreferences("custom_artists", Context.MODE_PRIVATE)
+        return prefs.getLong("artist_${artistName}_timestamp", 0)
+    }
+
+    private fun getArtistCacheKey(artistName: String, suffix: String = ""): String {
+        val timestamp = getArtistTimestamp(artistName)
+        return "artist_${artistName}_${timestamp}_$suffix"
     }
 }

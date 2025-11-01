@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@android:color/black"
+    android:background="@android:color/transparent"
     android:fitsSystemWindows="false">
 
     <!-- HorizontalScrollView для вкладок -->
@@ -35,7 +35,7 @@
                     android:layout_height="wrap_content"
                     android:text="Треки"
                     android:textSize="20sp"
-                    android:textColor="@color/accent_color"
+                    android:textColor="@color/colorTextSecondary"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp" />
 
@@ -59,7 +59,7 @@
                     android:layout_height="wrap_content"
                     android:text="Плейлисты"
                     android:textSize="20sp"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/colorTextSecondary"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp" />
 
@@ -84,7 +84,7 @@
                     android:layout_height="wrap_content"
                     android:text="Альбомы"
                     android:textSize="20sp"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/colorTextSecondary"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp" />
 
@@ -109,7 +109,7 @@
                     android:layout_height="wrap_content"
                     android:text="Исполнители"
                     android:textSize="20sp"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/colorTextSecondary"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp" />
 
@@ -133,7 +133,7 @@
                     android:layout_height="wrap_content"
                     android:text="Жанры"
                     android:textSize="20sp"
-                    android:textColor="@android:color/white"
+                    android:textColor="@color/colorTextSecondary"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp" />
 
@@ -183,7 +183,8 @@
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="Shuffle"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/ic_shuffle" />
+                    android:src="@drawable/ic_shuffle"
+                    android:tint="@color/colorIconTint" />
 
                 <ImageButton
                     android:id="@+id/sortButton"
@@ -192,7 +193,8 @@
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="Sort"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/ic_sort" />
+                    android:src="@drawable/ic_sort"
+                    android:tint="@color/colorIconTint" />
 
             </LinearLayout>
 
@@ -211,7 +213,8 @@
                     android:src="@drawable/ic_menu_add"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Создать плейлист"
-                    android:layout_marginEnd="16dp" />
+                    android:layout_marginEnd="16dp"
+                    android:tint="@color/colorIconTint" />
 
                 <ImageButton
                     android:id="@+id/btnReorderPlaylists"
@@ -219,7 +222,8 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_reorder"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Режим переупорядочивания" />
+                    android:contentDescription="Режим переупорядочивания"
+                    android:tint="@color/colorIconTint" />
 
             </LinearLayout>
 
@@ -237,7 +241,8 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_reorder"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Переупорядочить альбомы" />
+                    android:contentDescription="Переупорядочить альбомы"
+                    android:tint="@color/colorIconTint" />
 
             </LinearLayout>
 
@@ -255,7 +260,8 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_reorder"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Переупорядочить исполнителей" />
+                    android:contentDescription="Переупорядочить исполнителей"
+                    android:tint="@color/colorIconTint" />
 
             </LinearLayout>
 
@@ -273,7 +279,8 @@
                     android:layout_height="24dp"
                     android:src="@drawable/ic_reorder"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Переупорядочить жанры" />
+                    android:contentDescription="Переупорядочить жанры"
+                    android:tint="@color/colorIconTint" />
 
             </LinearLayout>
 
@@ -292,9 +299,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="0 треков • 0:00"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextSecondary"
                 android:textSize="14sp"
-                android:alpha="0.7"
                 android:visibility="visible" />
 
         </LinearLayout>
@@ -314,7 +320,8 @@
                 android:background="?android:attr/selectableItemBackground"
                 android:contentDescription="Search"
                 android:scaleType="fitCenter"
-                android:src="@drawable/ic_search" />
+                android:src="@drawable/ic_search"
+                android:tint="@color/colorIconTint" />
 
             <ImageButton
                 android:id="@+id/menuButton"
@@ -323,7 +330,8 @@
                 android:background="?android:attr/selectableItemBackground"
                 android:contentDescription="Menu"
                 android:scaleType="fitCenter"
-                android:src="@drawable/ic_more" />
+                android:src="@drawable/ic_more"
+                android:tint="@color/colorIconTint" />
 
         </LinearLayout>
 

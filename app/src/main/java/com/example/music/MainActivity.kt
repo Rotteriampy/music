@@ -50,6 +50,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AppCompatDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -165,6 +166,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val artistUpdateLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // Перезагружаем данные артистов
+            loadArtistsData()
+        }
+    }
+
+    private val genreUpdateLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // Перезагружаем данные жанров
+            loadGenresData()
+        }
+    }
+    val playlistUpdateLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // Перезагружаем данные плейлистов
+            loadPlaylistsData()
+        }
+    }
+
     private val trackChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -217,6 +238,17 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Initialize night mode from saved preference; default to dark on first launch
+        run {
+            val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            if (!prefs.contains("night_mode")) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+                prefs.edit().putInt("night_mode", AppCompatDelegate.MODE_NIGHT_YES).apply()
+            } else {
+                val mode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_YES)
+                AppCompatDelegate.setDefaultNightMode(mode)
+            }
+        }
         // Switch from SplashTheme to the normal app theme before inflating content
         setTheme(R.style.Theme_Music)
         setContentView(R.layout.activity_main)
@@ -422,6 +454,14 @@ class MainActivity : AppCompatActivity() {
         updateMiniPlayer()
         updateActiveTabColors()
         updateMiniPlayerButton()
+
+        if (contentAlbums.visibility == View.VISIBLE) {
+            loadAlbumsData()
+        } else if (contentArtists.visibility == View.VISIBLE) {
+            loadArtistsData()
+        } else if (contentGenres.visibility == View.VISIBLE) {
+            loadGenresData()
+        }
 
         if (contentPlaylists.visibility == View.VISIBLE) {
             if (!arePlaylistsLoaded) {
@@ -931,6 +971,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadAlbumsData() {
         lifecycleScope.launch {
             // Показываем кэш сразу
+            albumAdapter.updateAlbums(emptyList())
             val cachedAlbums = DataCache.loadAlbums(this@MainActivity)
             if (cachedAlbums != null && cachedAlbums.isNotEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -954,6 +995,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadArtistsData() {
         lifecycleScope.launch {
             // Показываем кэш сразу
+            artistAdapter.updateArtists(emptyList())
             val cachedArtists = DataCache.loadArtists(this@MainActivity)
             if (cachedArtists != null && cachedArtists.isNotEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -977,6 +1019,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadGenresData() {
         lifecycleScope.launch {
             // Показываем кэш сразу
+            genreAdapter.updateGenres(emptyList())
             val cachedGenres = DataCache.loadGenres(this@MainActivity)
             if (cachedGenres != null && cachedGenres.isNotEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -1476,7 +1519,7 @@ class MainActivity : AppCompatActivity() {
             .setView(dialogView)
             .create()
 
-    // Установка серого фона для диалога
+        // Установка серого фона для диалога
         setupDialogGradient(dialog)
 
         btnApplySort.setOnClickListener {

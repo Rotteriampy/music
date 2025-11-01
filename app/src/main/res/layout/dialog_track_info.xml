@@ -20,14 +20,14 @@
             android:textSize="20sp"
             android:textStyle="bold"
             android:gravity="center"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:paddingBottom="12dp" />
 
         <!-- Разделитель -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#33FFFFFF"
+            android:background="@color/colorDivider"
             android:layout_marginBottom="16dp" />
 
         <!-- Секция: Основная информация -->
@@ -37,7 +37,8 @@
             android:text="Основная информация"
             android:textStyle="bold"
             android:textSize="16sp"
-            android:textColor="#CCFFFFFF"
+            android:textColor="@color/colorTextPrimary"
+            android:alpha="0.7"
             android:paddingBottom="8dp" />
 
         <!-- Исполнитель -->
@@ -52,7 +53,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_artist"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoArtist"
@@ -61,7 +62,7 @@
                 android:layout_weight="1"
                 android:text="Исполнитель: Unknown"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Альбом -->
@@ -76,7 +77,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_album"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoAlbum"
@@ -85,7 +86,7 @@
                 android:layout_weight="1"
                 android:text="Альбом: Unknown"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Жанр -->
@@ -100,7 +101,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_genre"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoGenre"
@@ -109,7 +110,7 @@
                 android:layout_weight="1"
                 android:text="Жанр: Unknown"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Год -->
@@ -124,7 +125,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_year"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoYear"
@@ -133,14 +134,14 @@
                 android:layout_weight="1"
                 android:text="Год: Неизвестно"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Разделитель между секциями -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#33FFFFFF"
+            android:background="@color/colorDivider"
             android:layout_marginVertical="12dp" />
 
         <!-- Секция: Аудиохарактеристики -->
@@ -150,7 +151,8 @@
             android:text="Аудиохарактеристики"
             android:textStyle="bold"
             android:textSize="16sp"
-            android:textColor="#CCFFFFFF"
+            android:textColor="@color/colorTextPrimary"
+            android:alpha="0.7"
             android:paddingBottom="8dp" />
 
         <!-- Длительность -->
@@ -165,7 +167,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_duration"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoDuration"
@@ -174,7 +176,7 @@
                 android:layout_weight="1"
                 android:text="Длительность: 0:00"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Битрейт -->
@@ -189,7 +191,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_bitrate"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoBitrate"
@@ -198,7 +200,7 @@
                 android:layout_weight="1"
                 android:text="Битрейт: 0 kbps"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Разделитель между секциями -->
@@ -215,7 +217,8 @@
             android:text="Файл"
             android:textStyle="bold"
             android:textSize="16sp"
-            android:textColor="#CCFFFFFF"
+            android:textColor="@color/colorTextPrimary"
+            android:alpha="0.7"
             android:paddingBottom="8dp" />
 
         <!-- Размер файла -->
@@ -230,7 +233,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_file_size"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoFileSize"
@@ -239,7 +242,7 @@
                 android:layout_weight="1"
                 android:text="Размер: 0 МБ"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Дата изменения -->
@@ -254,7 +257,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_date"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoModified"
@@ -263,7 +266,7 @@
                 android:layout_weight="1"
                 android:text="Изменён: "
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Путь -->
@@ -278,7 +281,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_path"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoPath"
@@ -287,7 +290,7 @@
                 android:layout_weight="1"
                 android:text="Путь: "
                 android:textSize="14sp"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textIsSelectable="true" />
         </LinearLayout>
 
@@ -305,7 +308,8 @@
             android:text="Статистика"
             android:textStyle="bold"
             android:textSize="16sp"
-            android:textColor="#CCFFFFFF"
+            android:textColor="@color/colorTextPrimary"
+            android:alpha="0.7"
             android:paddingBottom="8dp" />
 
         <!-- Количество прослушиваний -->
@@ -320,7 +324,7 @@
                 android:layout_height="20dp"
                 android:src="@drawable/ic_play_count"
                 android:layout_marginEnd="16dp"
-                android:tint="@android:color/white" />
+                android:tint="@color/colorIconTint" />
 
             <TextView
                 android:id="@+id/tvInfoPlayCount"
@@ -329,7 +333,7 @@
                 android:layout_weight="1"
                 android:text="Прослушиваний: 0"
                 android:textSize="14sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
         </LinearLayout>
 
         <!-- Кнопка закрытия -->
@@ -340,7 +344,7 @@
             android:text="Закрыть"
             android:textSize="16sp"
             android:background="?android:attr/selectableItemBackground"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:textAllCaps="false" />
 
     </LinearLayout>

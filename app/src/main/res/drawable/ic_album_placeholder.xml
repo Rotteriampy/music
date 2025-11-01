@@ -4,6 +4,14 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
 
+    <!-- Увеличенный скругленный прямоугольник -->
+    <path
+        android:fillColor="#33000000"
+        android:pathData="M1.5,0.5h21c0.83,0 1.5,0.67 1.5,1.5v20c0,0.83 -0.67,1.5 -1.5,1.5h-21c-0.83,0 -1.5,-0.67 -1.5,-1.5v-20c0,-0.83 0.67,-1.5 1.5,-1.5z"
+        android:strokeWidth="0"
+        android:fillType="evenOdd" />
+
+    <!-- Белая иконка (нота) без изменений -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3H12z" />

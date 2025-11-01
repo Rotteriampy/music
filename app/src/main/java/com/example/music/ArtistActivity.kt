@@ -496,11 +496,26 @@ class ArtistActivity : AppCompatActivity() {
     }
 
     private fun saveCustomArtistData() {
-        val prefs = getSharedPreferences("custom_artists", MODE_PRIVATE)
+        val prefs = getSharedPreferences("custom_artists", MODE_PRIVATE) // Исправлено: custom_artists
         val editor = prefs.edit()
-        editor.putString("artist_${artistName}_name", customArtistName)
-        editor.putString("artist_${artistName}_cover", customArtistCover?.toString())
+        editor.putString("artist_${artistName}_name", customArtistName) // Исправлено: artist_
+        editor.putString("artist_${artistName}_cover", customArtistCover?.toString()) // Исправлено: artist_
+        editor.putLong("artist_${artistName}_timestamp", System.currentTimeMillis()) // Добавлено: временная метка
         editor.apply()
+
+        updateArtistUI()
+        loadArtistCover()
+
+        // Устанавливаем результат для обновления главного экрана
+        setResult(RESULT_OK)
+
+        // Очищаем кэш для этого исполнителя
+        DiskImageCache.removeByPrefix("artist_${artistName}") // Исправлено: artist_
+
+        // Если имя изменилось, очищаем кэш и для старого имени
+        if (customArtistName != artistName) {
+            DiskImageCache.removeByPrefix("artist_${customArtistName}") // Исправлено: artist_
+        }
     }
 
     private fun loadCustomArtistData() {

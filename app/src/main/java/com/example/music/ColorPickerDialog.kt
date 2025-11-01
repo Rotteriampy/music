@@ -59,7 +59,7 @@ class ColorPickerDialog(
             if (!isUpdatingFromHex) {
                 isUpdatingFromWheel = true
                 currentColor = color
-                updatePreview(color)
+                updatePreview(color, updateHexField = true)
                 isUpdatingFromWheel = false
             }
         }
@@ -71,34 +71,27 @@ class ColorPickerDialog(
             override fun afterTextChanged(s: Editable?) {
                 if (isUpdatingFromWheel) return
 
-                val text = s?.toString()?.trim() ?: return
+                val raw = s?.toString() ?: return
+                val text = raw.trim()
                 if (text.isEmpty()) return
 
-                isUpdatingFromHex = true
-
+                // Only react when a complete hex is entered to avoid overwriting user input mid-typing
                 val hex = if (text.startsWith("#")) text else "#$text"
+                val isComplete = (hex.length == 7 || hex.length == 9)
+                if (!isComplete) return
+
                 try {
-                    val color = when {
-                        hex.length == 7 -> Color.parseColor(hex) // #RRGGBB
-                        hex.length == 9 -> Color.parseColor(hex) // #AARRGGBB
-                        else -> {
-                            // For incomplete hex, try to parse what we have
-                            if (hex.length in 2..8) {
-                                val paddedHex = hex + "0".repeat(9 - hex.length)
-                                Color.parseColor(paddedHex.substring(0, 9))
-                            } else {
-                                throw IllegalArgumentException("Invalid hex length")
-                            }
-                        }
-                    }
+                    isUpdatingFromHex = true
+                    val color = Color.parseColor(hex)
                     currentColor = color
                     colorWheel.setColor(color)
-                    updatePreview(color)
+                    // Do not update the EditText text while user is typing via hex
+                    updatePreview(color, updateHexField = false)
                 } catch (_: Exception) {
-                    // ignore invalid hex in progress
+                    // ignore invalid hex
+                } finally {
+                    isUpdatingFromHex = false
                 }
-
-                isUpdatingFromHex = false
             }
         })
 
@@ -116,7 +109,7 @@ class ColorPickerDialog(
         btnCancel.backgroundTintList = null
     }
 
-    private fun updatePreview(color: Int) {
+    private fun updatePreview(color: Int, updateHexField: Boolean = true) {
         colorPreview.setBackgroundColor(color)
 
         // Format hex with alpha channel support
@@ -126,9 +119,11 @@ class ColorPickerDialog(
             String.format("#%08X", color)
         }
 
-        if (etHexValue.text?.toString() != hex) {
-            etHexValue.setText(hex)
-            etHexValue.setSelection(etHexValue.text?.length ?: 0)
+        if (updateHexField) {
+            if (etHexValue.text?.toString() != hex) {
+                etHexValue.setText(hex)
+                etHexValue.setSelection(etHexValue.text?.length ?: 0)
+            }
         }
     }
 }

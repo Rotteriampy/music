@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Добавить треки"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:textSize="20sp"
             android:textStyle="bold"
             android:paddingStart="8dp"/>
@@ -54,7 +54,7 @@
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
             android:text="Отмена"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:backgroundTint="#50FF5252"
             android:textSize="14sp"
             android:padding="12dp" />
@@ -67,7 +67,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:text="Добавить"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:backgroundTint="#504CAF50"
             android:textSize="14sp"
             android:padding="12dp" />

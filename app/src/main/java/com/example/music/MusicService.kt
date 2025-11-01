@@ -189,6 +189,38 @@ class MusicService : Service() {
             resumeMusic()
             return
         }
+        // Перед переключением трека — зафиксируем процент прослушивания предыдущего (если не было перемоток)
+        try {
+            val prevPath = currentTrackPath
+            if (prevPath != null && mediaPlayer != null && !hasSeekedThisTrack && !hasCountedAsPlayed) {
+                val dur = getDuration()
+                val pos = getCurrentPosition()
+                if (dur > 0) {
+                    val pct = ((pos.toFloat() / dur.toFloat()) * 100f).coerceIn(0f, 100f)
+                    val ct = currentTrack
+                    var genre: String? = null
+                    try {
+                        val r = MediaMetadataRetriever()
+                        r.setDataSource(prevPath)
+                        genre = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                        r.release()
+                    } catch (_: Exception) {}
+                    PlayHistory.append(
+                        this,
+                        PlayHistory.PlayEvent(
+                            timestamp = System.currentTimeMillis(),
+                            trackPath = ct?.path,
+                            trackName = ct?.name,
+                            artist = ct?.artist,
+                            albumName = ct?.albumName,
+                            genre = genre,
+                            percent = pct
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+
         currentTrackPath = path
         currentTrack = QueueManager.getCurrentTrack()
         // Если очередь пустая (например, запущено воспроизведение напрямую по TRACK_PATH),
@@ -506,7 +538,8 @@ class MusicService : Service() {
                         trackName = ct?.name,
                         artist = ct?.artist,
                         albumName = ct?.albumName,
-                        genre = genre
+                        genre = genre,
+                        percent = 100f
                     )
                 )
             } catch (_: Exception) { }
@@ -531,6 +564,37 @@ class MusicService : Service() {
     }
 
     private fun stopService() {
+        // Перед остановкой — зафиксируем процент прослушивания текущего трека, если не было перемоток и не было засчитано прослушивание
+        try {
+            if (currentTrackPath != null && mediaPlayer != null && !hasSeekedThisTrack && !hasCountedAsPlayed) {
+                val dur = getDuration()
+                val pos = getCurrentPosition()
+                if (dur > 0) {
+                    val pct = ((pos.toFloat() / dur.toFloat()) * 100f).coerceIn(0f, 100f)
+                    val ct = currentTrack
+                    var genre: String? = null
+                    try {
+                        val r = MediaMetadataRetriever()
+                        r.setDataSource(currentTrackPath)
+                        genre = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                        r.release()
+                    } catch (_: Exception) {}
+                    PlayHistory.append(
+                        this,
+                        PlayHistory.PlayEvent(
+                            timestamp = System.currentTimeMillis(),
+                            trackPath = ct?.path,
+                            trackName = ct?.name,
+                            artist = ct?.artist,
+                            albumName = ct?.albumName,
+                            genre = genre,
+                            percent = pct
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+
         checkAndIncrementPlayCount()
 
         mediaPlayer?.stop()

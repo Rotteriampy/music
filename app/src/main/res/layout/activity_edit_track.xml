@@ -28,7 +28,7 @@
                 android:src="@drawable/ic_back_triangle"
                 android:background="@null"
                 android:contentDescription="Назад"
-                android:tint="@android:color/white"
+                android:tint="@color/colorIconTint"
                 android:layout_marginEnd="16dp" />
 
             <TextView
@@ -36,7 +36,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Редактировать теги"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -73,7 +73,8 @@
                     android:layout_height="44dp"
                     android:src="@drawable/ic_edit"
                     android:padding="8dp"
-                    android:layout_centerInParent="true" />
+                    android:layout_centerInParent="true"
+                    android:tint="@color/colorIconTint" />
 
             </RelativeLayout>
 
@@ -92,7 +93,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Предпросмотр"
-                android:textColor="#CCCCCC"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="12dp" />
@@ -123,7 +124,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Название трека"
-                        android:textColor="@android:color/white"
+                        android:textColor="@color/colorTextPrimary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -132,7 +133,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Исполнитель"
-                        android:textColor="#B0B0B0"
+                        android:textColor="@color/colorTextPrimary"
                         android:textSize="12sp" />
 
                     <TextView
@@ -140,7 +141,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Альбом"
-                        android:textColor="#B0B0B0"
+                        android:textColor="@color/colorTextPrimary"
                         android:textSize="12sp" />
 
                 </LinearLayout>
@@ -169,7 +170,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_title"
-                    android:tint="#CCCCCC"
+                    android:tint="@color/colorIconTint"
                     android:layout_marginEnd="8dp" />
 
                 <TextView
@@ -177,7 +178,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Название трека"
-                    android:textColor="#CCCCCC"
+                    android:textColor="@color/colorTextPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -189,7 +190,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/edit_text_background"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="16sp"
                 android:padding="12dp"
                 android:hint="Введите название"
@@ -219,7 +220,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_artist"
-                    android:tint="#CCCCCC"
+                    android:tint="@color/colorIconTint"
                     android:layout_marginEnd="8dp" />
 
                 <TextView
@@ -227,7 +228,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Исполнитель"
-                    android:textColor="#CCCCCC"
+                    android:textColor="@color/colorTextPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -239,7 +240,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/edit_text_background"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="16sp"
                 android:padding="12dp"
                 android:hint="Введите исполнителя"
@@ -269,7 +270,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_album"
-                    android:tint="#CCCCCC"
+                    android:tint="@color/colorIconTint"
                     android:layout_marginEnd="8dp" />
 
                 <TextView
@@ -277,7 +278,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Альбом"
-                    android:textColor="#CCCCCC"
+                    android:textColor="@color/colorTextPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -289,7 +290,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/edit_text_background"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="16sp"
                 android:padding="12dp"
                 android:hint="Введите альбом"
@@ -319,7 +320,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_genre"
-                    android:tint="#CCCCCC"
+                    android:tint="@color/colorIconTint"
                     android:layout_marginEnd="8dp" />
 
                 <TextView
@@ -327,7 +328,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Жанр"
-                    android:textColor="#CCCCCC"
+                    android:textColor="@color/colorTextPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -339,7 +340,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/edit_text_background"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="16sp"
                 android:padding="12dp"
                 android:hint="Введите жанр"
@@ -365,7 +366,7 @@
                 android:layout_marginEnd="8dp"
                 android:text="Сбросить"
                 android:backgroundTint="#33FF5252"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="14sp" />
 
             <!-- Кнопка "на все треки" - полупрозрачный синий -->
@@ -377,7 +378,7 @@
                 android:layout_marginStart="8dp"
                 android:text="Ко всем трекам"
                 android:backgroundTint="#334299F6"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:textSize="14sp" />
 
         </LinearLayout>
@@ -388,7 +389,7 @@
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:text="Сохранить"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:backgroundTint="#664CAF50"
             android:textSize="16sp"
             android:textStyle="bold" />

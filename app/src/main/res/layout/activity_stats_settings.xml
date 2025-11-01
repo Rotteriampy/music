@@ -13,9 +13,80 @@
         android:text="Управление статистикой"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="@android:color/white"
+        android:textColor="@color/colorTextPrimary"
         android:layout_marginBottom="24dp"
         android:layout_marginStart="8dp" />
+
+    <!-- Раздел выбора типа графика (сверху) -->
+    <LinearLayout
+        android:id="@+id/chartTypeSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/settings_section_background"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp">
+
+        <!-- Заголовок с иконкой -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_stats"
+                android:tint="@color/colorIconTint"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Тип графика"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary" />
+        </LinearLayout>
+
+        <!-- Кликабельная строка выбора типа графика -->
+        <LinearLayout
+            android:id="@+id/chartTypeRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/settings_item_background"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/chartTypeValue"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Линия"
+                android:textSize="16sp"
+                android:textColor="@color/colorTextPrimary" />
+
+            <ImageView
+                android:id="@+id/chartTypeArrow"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_arrow_down"
+                android:tint="@color/colorIconTint" />
+        </LinearLayout>
+
+        <!-- Скрытый Spinner для системного выпадающего меню -->
+        <Spinner
+            android:id="@+id/spChartTypeSettings"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:spinnerMode="dropdown" />
+
+    </LinearLayout>
 
     <!-- Раздел статистики с полупрозрачным фоном -->
     <LinearLayout
@@ -26,14 +97,28 @@
         android:padding="16dp"
         android:layout_marginBottom="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Статистика прослушиваний"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/white"
-            android:layout_marginBottom="16dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_data"
+                android:tint="@color/colorIconTint"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Данные"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/exportStatsButton"
@@ -49,7 +134,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_export"
-                android:tint="@android:color/white"
+                android:tint="@color/colorIconTint"
                 android:layout_marginEnd="16dp" />
 
             <TextView
@@ -57,7 +142,7 @@
                 android:layout_height="wrap_content"
                 android:text="Экспортировать статистику"
                 android:textSize="16sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
 
         </LinearLayout>
 
@@ -75,7 +160,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_import"
-                android:tint="@android:color/white"
+                android:tint="@color/colorIconTint"
                 android:layout_marginEnd="16dp" />
 
             <TextView
@@ -83,7 +168,7 @@
                 android:layout_height="wrap_content"
                 android:text="Импортировать статистику"
                 android:textSize="16sp"
-                android:textColor="@android:color/white" />
+                android:textColor="@color/colorTextPrimary" />
 
         </LinearLayout>
 
@@ -130,7 +215,7 @@
             android:layout_height="wrap_content"
             android:text="Назад"
             android:textSize="16sp"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:textStyle="bold" />
 
     </LinearLayout>

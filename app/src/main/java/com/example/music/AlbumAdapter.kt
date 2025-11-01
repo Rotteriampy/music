@@ -52,17 +52,22 @@ class AlbumAdapter(
 
         // Показываем название (кастомное или оригинальное)
         holder.albumName.text = customName ?: album.name
+        // По умолчанию цвета темы
+        holder.albumName.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextPrimary))
+        holder.tracksInfo.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextSecondary))
+        var avatarPresent = false
 
         // Загружаем обложку
         if (customName?.equals("<unknown>", ignoreCase = true) == true) {
             holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
         } else if (customCoverUri != null) {
-            // Загружаем bitmap по URI и скругляем
+            // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+            val cacheKey = getAlbumCacheKey(album.name, "custom_uri_${customCoverUri}")
             try {
-                val cacheKey = "album_custom_uri_" + customCoverUri
                 val cached = DiskImageCache.getBitmap(cacheKey)
                 if (cached != null) {
                     holder.albumCover.setImageBitmap(roundToView(holder.albumCover, cached, 12f))
+                    avatarPresent = true
                 } else {
                     val uri = Uri.parse(customCoverUri)
                     val input: InputStream? = context.contentResolver.openInputStream(uri)
@@ -70,6 +75,7 @@ class AlbumAdapter(
                     if (bmp != null) {
                         DiskImageCache.putBitmap(cacheKey, bmp)
                         holder.albumCover.setImageBitmap(roundToView(holder.albumCover, bmp, 12f))
+                        avatarPresent = true
                     }
                     input?.close()
                 }
@@ -81,15 +87,21 @@ class AlbumAdapter(
             val cachedTrackPath = prefs.getString("album_${album.name}_cover_track", null)
             var set = false
             if (cachedTrackPath != null) {
-                set = loadAlbumCover(cachedTrackPath, holder.albumCover)
+                // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                val cacheKey = getAlbumCacheKey(album.name, "cover_track_${cachedTrackPath}")
+                set = loadAlbumCover(cachedTrackPath, holder.albumCover, cacheKey)
+                if (set) avatarPresent = true
             }
             // Если не удалось — ищем первый трек с обложкой и кэшируем его путь
             if (!set) {
                 for (t in album.tracks) {
                     val p = t.path ?: continue
-                    if (loadAlbumCover(p, holder.albumCover)) {
+                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                    val cacheKey = getAlbumCacheKey(album.name, "cover_track_${p}")
+                    if (loadAlbumCover(p, holder.albumCover, cacheKey)) {
                         prefs.edit().putString("album_${album.name}_cover_track", p).apply()
                         set = true
+                        avatarPresent = true
                         break
                     }
                 }
@@ -100,9 +112,22 @@ class AlbumAdapter(
                 if (name.equals("Unknown", ignoreCase = true) || name.equals("<unknown>", ignoreCase = true)) {
                     holder.albumCover.setImageResource(R.drawable.ic_album_placeholder)
                 } else {
-                    holder.albumCover.setImageBitmap(roundToView(holder.albumCover, generateLetterCover(name), 12f))
+                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой для буквенной обложки
+                    val cacheKey = getAlbumCacheKey(album.name, "letter_cover")
+                    var cached = DiskImageCache.getBitmap(cacheKey)
+                    if (cached == null) {
+                        cached = generateLetterCover(name)
+                        DiskImageCache.putBitmap(cacheKey, cached)
+                    }
+                    holder.albumCover.setImageBitmap(roundToView(holder.albumCover, cached, 12f))
+                    avatarPresent = true
                 }
             }
+        }
+
+        if (avatarPresent) {
+            holder.albumName.setTextColor(android.graphics.Color.WHITE)
+            holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
         }
 
         holder.itemView.setOnClickListener {
@@ -120,22 +145,28 @@ class AlbumAdapter(
         holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
     }
 
-    private fun loadAlbumCover(trackPath: String, imageView: ImageView): Boolean {
-        val cacheKey = "album_cover_from_track_" + trackPath
-        DiskImageCache.getBitmap(cacheKey)?.let { cached ->
-            imageView.setImageBitmap(roundToView(imageView, cached, 12f))
+    private fun loadAlbumCover(trackPath: String, imageView: ImageView, cacheKey: String): Boolean {
+        // Добавляем суффикс для скругленной версии
+        val roundedCacheKey = "${cacheKey}_rounded"
+
+        DiskImageCache.getBitmap(roundedCacheKey)?.let { cached ->
+            imageView.setImageBitmap(cached)
             return true
         }
+
         try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(trackPath)
             val artBytes = retriever.embeddedPicture
             if (artBytes != null) {
                 val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                if (bitmap != null) DiskImageCache.putBitmap(cacheKey, bitmap)
-                imageView.setImageBitmap(roundToView(imageView, bitmap, 12f))
-                retriever.release()
-                return true
+                if (bitmap != null) {
+                    val roundedBitmap = roundToView(imageView, bitmap, 12f)
+                    DiskImageCache.putBitmap(roundedCacheKey, roundedBitmap)
+                    imageView.setImageBitmap(roundedBitmap)
+                    retriever.release()
+                    return true
+                }
             }
             retriever.release()
         } catch (e: Exception) {
@@ -214,5 +245,14 @@ class AlbumAdapter(
     private fun reorderUnknownFirst(src: List<Album>): List<Album> {
         val (unknowns, others) = src.partition { it.name.equals("Unknown", true) || it.name.equals("<unknown>", true) }
         return unknowns + others
+    }
+    private fun getAlbumTimestamp(albumName: String): Long {
+        val prefs = context.getSharedPreferences("custom_albums", Context.MODE_PRIVATE)
+        return prefs.getLong("album_${albumName}_timestamp", 0)
+    }
+
+    private fun getAlbumCacheKey(albumName: String, suffix: String = ""): String {
+        val timestamp = getAlbumTimestamp(albumName)
+        return "album_${albumName}_${timestamp}_$suffix"
     }
 }

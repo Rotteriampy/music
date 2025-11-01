@@ -22,7 +22,7 @@
             android:src="@drawable/ic_back_triangle"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Назад"
-            android:tint="@android:color/white"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="8dp" />
 
         <LinearLayout
@@ -39,7 +39,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search"
-                android:tint="#888888"
+                android:tint="@color/colorIconTint"
                 android:layout_marginEnd="12dp" />
 
             <EditText
@@ -49,7 +49,7 @@
                 android:layout_weight="1"
                 android:hint="Поиск треков, альбомов, исполнителей..."
                 android:textColorHint="#888888"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:background="@android:color/transparent"
                 android:singleLine="true"
                 android:imeOptions="actionSearch"
@@ -60,7 +60,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_close"
-                android:tint="#888888"
+                android:tint="@color/colorIconTint"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:visibility="gone"
                 android:contentDescription="Очистить" />
@@ -87,7 +87,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Треки"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:buttonTint="@color/accent_color"
                 android:checked="true"
                 android:paddingEnd="16dp" />
@@ -97,7 +97,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Плейлисты"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:buttonTint="@color/accent_color"
                 android:paddingEnd="16dp" />
 
@@ -106,7 +106,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Альбомы"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:buttonTint="@color/accent_color"
                 android:paddingEnd="16dp" />
 
@@ -115,7 +115,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Исполнители"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:buttonTint="@color/accent_color"
                 android:paddingEnd="16dp" />
 
@@ -124,7 +124,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Жанры"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:buttonTint="@color/accent_color" />
 
         </RadioGroup>

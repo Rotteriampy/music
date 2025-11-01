@@ -1,113 +1,337 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/statsRoot"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/statsScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
+    android:fillViewport="true"
     android:background="@android:color/black">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <ImageButton
-            android:id="@+id/btnBackStats"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_back_triangle"
-            android:background="@null"
-            android:contentDescription="Назад"
-            android:tint="@android:color/white" />
-
-        <TextView
-            android:id="@+id/statsTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Статистика"
-            android:textColor="@android:color/white"
-            android:textSize="20sp"
-            android:layout_marginStart="12dp" />
-    </LinearLayout>
-
-    <!-- Выбор типа (одна кнопка с выпадающим меню) -->
-    <Spinner
-        android:id="@+id/spMode"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:spinnerMode="dropdown" />
-
-    <RadioGroup
-        android:id="@+id/rgPeriod"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="8dp">
-
-        <RadioButton
-            android:id="@+id/rbDays"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Дни"
-            android:textColor="@android:color/white"
-            android:buttonTint="@android:color/white"
-            android:layout_marginEnd="12dp" />
-
-        <RadioButton
-            android:id="@+id/rbWeeks"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Недели"
-            android:textColor="@android:color/white"
-            android:buttonTint="@android:color/white"
-            android:layout_marginEnd="12dp" />
-
-        <RadioButton
-            android:id="@+id/rbMonths"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Месяцы"
-            android:textColor="@android:color/white"
-            android:buttonTint="@android:color/white" />
-    </RadioGroup>
-
-    <!-- Диапазон убран: ось X регулируется кнопками периода (дни/недели/месяцы) -->
-
-    <!-- Область графика: на ширину экрана, увеличенная высота -->
-    <com.github.mikephil.charting.charts.LineChart
-        android:id="@+id/lineChart"
-        android:layout_width="match_parent"
-        android:layout_height="240dp"
-        android:layout_marginTop="10dp" />
-
-    <!-- Дополнительные данные -->
-    <LinearLayout
-        android:id="@+id/extraPanel"
+        android:id="@+id/statsRoot"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginTop="8dp">
+        android:padding="16dp">
 
-        <TextView
-            android:id="@+id/extraTitle"
+        <!-- Заголовок -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
-            android:textSize="22sp"
-            android:layout_marginTop="20dp"
-            android:text="Всего прослушиваний" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/extraValue"
+            <ImageButton
+                android:id="@+id/btnBackStats"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_back_triangle"
+                android:background="@null"
+                android:contentDescription="Назад"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/statsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Статистика"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+        <!-- Выбор типа -->
+        <Spinner
+            android:id="@+id/spMode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
-            android:textSize="18sp"
-            android:text="0" />
+            android:layout_marginTop="12dp"
+            android:spinnerMode="dropdown" />
+
+        <!-- Период -->
+        <RadioGroup
+            android:id="@+id/rgPeriod"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="8dp">
+
+            <RadioButton
+                android:id="@+id/rbDays"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Дни"
+                android:textColor="@android:color/white"
+                android:buttonTint="@android:color/white"
+                android:layout_marginEnd="12dp" />
+
+            <RadioButton
+                android:id="@+id/rbWeeks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Недели"
+                android:textColor="@android:color/white"
+                android:buttonTint="@android:color/white"
+                android:layout_marginEnd="12dp" />
+
+            <RadioButton
+                android:id="@+id/rbMonths"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Месяцы"
+                android:textColor="@android:color/white"
+                android:buttonTint="@android:color/white" />
+        </RadioGroup>
+
+        <!-- Переключатель значения: Прослушивания / Время прослушивания -->
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/swValueMode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="По времени"
+            android:textColor="@android:color/white" />
+
+        <!-- График -->
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/lineChart"
+            android:layout_width="match_parent"
+            android:layout_height="240dp"
+            android:layout_marginTop="10dp" />
+
+        <!-- Дополнительные данные -->
+        <LinearLayout
+            android:id="@+id/extraPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="16dp">
+
+            <!-- Заголовок с иконкой -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <!-- Иконка для общего режима -->
+                <ImageView
+                    android:id="@+id/extraIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_listens"
+                    android:layout_marginEnd="12dp"
+                    android:tint="@android:color/white" />
+
+                <!-- Иконка для режима рейтинга (изначально скрыта) -->
+                <ImageView
+                    android:id="@+id/rankingIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_stats"
+                    android:layout_marginEnd="12dp"
+                    android:tint="@android:color/white"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/extraTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white"
+                    android:textSize="20sp"
+                    android:text="Всего прослушиваний" />
+            </LinearLayout>
+
+            <!-- Блок для общего режима (показатели) -->
+            <LinearLayout
+                android:id="@+id/totalContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_stats_item"
+                android:padding="12dp">
+
+                <!-- Строка: Всего прослушиваний -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                    <ImageView
+                        android:id="@+id/totalIcon"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_stats_total"
+                        android:layout_marginEnd="8dp"
+                        android:tint="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/totalLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Всего прослушиваний:"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/totalValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Строка: Всего прослушивания (часы) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_stats_total"
+                        android:layout_marginEnd="8dp"
+                        android:tint="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/totalTimeLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Всего прослушивания (часы):"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/totalTimeValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Строка: Средний процент прослушивания -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_stats_total"
+                        android:layout_marginEnd="8dp"
+                        android:tint="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/totalAvgLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Средний % прослушивания:"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/totalAvgValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Строка: Время в приложении (часы) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_stats_total"
+                        android:layout_marginEnd="8dp"
+                        android:tint="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/totalAppTimeLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Время в приложении (часы):"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/totalAppTimeValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Строка: Коэффициент разнообразия артистов -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_stats_total"
+                        android:layout_marginEnd="8dp"
+                        android:tint="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/diversityLabel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Разнообразие артистов:"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/diversityValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0.00"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Контейнер для элементов рейтинга (для других режимов) -->
+            <LinearLayout
+                android:id="@+id/ratingContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone" />
+
+        </LinearLayout>
     </LinearLayout>
 
-</LinearLayout>
+</ScrollView>

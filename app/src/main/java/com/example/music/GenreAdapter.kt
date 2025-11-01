@@ -58,7 +58,6 @@ class GenreAdapter(
         // Показываем название (кастомное или оригинальное)
         if (genre.name.equals("Unknown", ignoreCase = true)) {
             holder.genreName.text = "<unknown>"
-            // Для Unknown используем стандартный плейсхолдер
             holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
         } else {
             holder.genreName.text = customName ?: genre.name
@@ -68,11 +67,22 @@ class GenreAdapter(
         if (!genre.name.equals("Unknown", ignoreCase = true)) {
             if (customCoverUri != null) {
                 try {
-                    val uri = Uri.parse(customCoverUri)
-                    val input: InputStream? = context.contentResolver.openInputStream(uri)
-                    val bmp = BitmapFactory.decodeStream(input)
-                    if (bmp != null) holder.coverImage.setImageBitmap(roundToView(holder.coverImage, bmp, 12f))
-                    input?.close()
+                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                    val cacheKey = getGenreCacheKey(genre.name, "custom_uri_${customCoverUri}")
+                    var cached = DiskImageCache.getBitmap(cacheKey)
+                    if (cached == null) {
+                        val uri = Uri.parse(customCoverUri)
+                        val input: InputStream? = context.contentResolver.openInputStream(uri)
+                        cached = BitmapFactory.decodeStream(input)
+                        if (cached != null) {
+                            DiskImageCache.putBitmap(cacheKey, cached)
+                        }
+                        input?.close()
+                    }
+                    if (cached != null) {
+                        val rounded = roundToView(holder.coverImage, cached, 12f)
+                        holder.coverImage.setImageBitmap(rounded)
+                    }
                 } catch (_: Exception) {
                     holder.coverImage.setImageResource(R.drawable.ic_album_placeholder)
                 }
@@ -81,11 +91,23 @@ class GenreAdapter(
                 var set = false
                 for (t in genre.tracks) {
                     val p = t.path ?: continue
-                    if (loadCover(p, holder.coverImage)) { set = true; break }
+                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                    val cacheKey = getGenreCacheKey(genre.name, "cover_track_${p}")
+                    if (loadCover(p, holder.coverImage, cacheKey)) {
+                        set = true;
+                        break
+                    }
                 }
                 if (!set) {
                     val displayName = (customName ?: genre.name).trim()
-                    holder.coverImage.setImageBitmap(roundToView(holder.coverImage, generateLetterCover(displayName), 12f))
+                    // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                    val cacheKey = getGenreCacheKey(genre.name, "letter_cover")
+                    var cached = DiskImageCache.getBitmap(cacheKey)
+                    if (cached == null) {
+                        cached = generateLetterCover(displayName)
+                        DiskImageCache.putBitmap(cacheKey, cached)
+                    }
+                    holder.coverImage.setImageBitmap(roundToView(holder.coverImage, cached, 12f))
                 }
             }
         }
@@ -104,14 +126,15 @@ class GenreAdapter(
         holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
     }
 
-    private fun loadCover(trackPath: String, imageView: ImageView): Boolean {
+    private fun loadCover(trackPath: String, imageView: ImageView, cacheKey: String): Boolean {
         try {
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(trackPath)
             val artBytes = retriever.embeddedPicture
             if (artBytes != null) {
                 val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                imageView.setImageBitmap(roundToView(imageView, bitmap, 12f))
+                val rounded = roundToView(imageView, bitmap, 12f)
+                imageView.setImageBitmap(rounded)
                 retriever.release()
                 return true
             }
@@ -171,5 +194,15 @@ class GenreAdapter(
     private fun reorderUnknownFirst(src: List<Genre>): List<Genre> {
         val (unknowns, others) = src.partition { it.name.equals("Unknown", true) || it.name.equals("<unknown>", true) }
         return unknowns + others
+    }
+    // В GenreAdapter.kt
+    private fun getGenreTimestamp(genreName: String): Long {
+        val prefs = context.getSharedPreferences("custom_genres", Context.MODE_PRIVATE)
+        return prefs.getLong("genre_${genreName}_timestamp", 0)
+    }
+
+    private fun getGenreCacheKey(genreName: String, suffix: String = ""): String {
+        val timestamp = getGenreTimestamp(genreName)
+        return "genre_${genreName}_${timestamp}_$suffix"
     }
 }

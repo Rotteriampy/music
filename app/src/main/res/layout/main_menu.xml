@@ -20,14 +20,14 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_settings"
-            android:tint="#FFFFFF"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Настройки"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorTextPrimary"
             android:textSize="16sp" />
 
     </LinearLayout>
@@ -36,7 +36,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#666666"
+        android:background="@color/popup_divider"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp" />
 
@@ -54,14 +54,14 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_queue"
-            android:tint="#FFFFFF"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Очередь"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorTextPrimary"
             android:textSize="16sp" />
 
     </LinearLayout>
@@ -70,7 +70,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#666666"
+        android:background="@color/popup_divider"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp" />
 
@@ -88,14 +88,14 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_stats"
-            android:tint="#FFFFFF"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Статистика"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorTextPrimary"
             android:textSize="16sp" />
 
     </LinearLayout>
@@ -104,7 +104,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#666666"
+        android:background="@color/popup_divider"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp" />
 
@@ -122,14 +122,14 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_clear_cache"
-            android:tint="#FFFFFF"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Очистить кэш"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/colorTextPrimary"
             android:textSize="16sp" />
 
     </LinearLayout>

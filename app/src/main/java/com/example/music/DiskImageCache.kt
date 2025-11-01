@@ -37,6 +37,24 @@ object DiskImageCache {
         return runCatching { BitmapFactory.decodeFile(f.absolutePath) }.getOrNull()
     }
 
+    fun removeFromCache(key: String) {
+        if (!initialized) return
+        val f = fileFor(key)
+        if (f.exists()) {
+            runCatching { f.delete() }
+        }
+    }
+
+    // Метод для массового удаления по префиксу (для групп)
+    fun removeByPrefix(prefix: String) {
+        if (!initialized) return
+        cacheDir.listFiles()?.forEach { file ->
+            if (file.name.startsWith(md5(prefix))) {
+                runCatching { file.delete() }
+            }
+        }
+    }
+
     fun putBitmap(key: String, bitmap: Bitmap) {
         if (!initialized) return
         val f = fileFor(key)

@@ -474,6 +474,14 @@ class PlaylistActivity : AppCompatActivity() {
                     newName = if (newName.isNotEmpty()) newName else null,
                     newCoverUri = newCover
                 )
+
+                // ДОБАВЛЕНО: Сохранение временной метки и очистка кэша
+                val prefs = getSharedPreferences("custom_playlists", MODE_PRIVATE)
+                prefs.edit().putLong("playlist_${curId}_timestamp", System.currentTimeMillis()).apply()
+
+                // Очищаем кэш для этого плейлиста
+                DiskImageCache.removeByPrefix("playlist_${curId}")
+
                 // reload current playlist instance and refresh UI
                 playlist = PlaylistManager.getPlaylists().find { it.id == curId }
                 playlist?.let { updated ->
@@ -481,6 +489,9 @@ class PlaylistActivity : AppCompatActivity() {
                     updatePlaylistStats(updated)
                     loadPlaylistBackground(updated)
                 }
+
+                // ДОБАВЛЕНО: Устанавливаем результат для обновления главного экрана
+                setResult(RESULT_OK)
             }
             editDialogCoverView = null
             selectedCoverUri = null

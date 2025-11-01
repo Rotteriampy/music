@@ -20,7 +20,7 @@
             android:src="@drawable/ic_back_triangle"
             android:background="@null"
             android:contentDescription="Назад"
-            android:tint="@android:color/white" />
+            android:tint="@color/colorIconTint" />
 
         <!-- Название -->
         <TextView
@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:gravity="center"
             android:layout_weight="1" />
 
@@ -39,7 +39,7 @@
             android:layout_height="40dp"
             android:src="@drawable/ic_edit"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="@android:color/white" />
+            android:tint="@color/colorIconTint" />
     </LinearLayout>
 
     <!-- РАЗДЕЛИТЕЛЬ -->
@@ -65,7 +65,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="0 треков • 0:00"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextSecondary"
             android:alpha="0.8" />
 
         <ImageButton
@@ -74,7 +74,7 @@
             android:layout_height="40dp"
             android:src="@drawable/ic_search"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="@android:color/white"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="8dp"/>
 
         <ImageButton
@@ -83,7 +83,7 @@
             android:layout_height="40dp"
             android:src="@drawable/ic_sort"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="@android:color/white"
+            android:tint="@color/colorIconTint"
             android:layout_marginEnd="8dp" />
 
         <ImageButton
@@ -92,7 +92,7 @@
             android:layout_height="40dp"
             android:src="@drawable/ic_reorder"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="@android:color/white" />
+            android:tint="@color/colorIconTint" />
     </LinearLayout>
 
     <!-- Ряд воспроизведения -->

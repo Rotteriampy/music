@@ -21,7 +21,8 @@ object PlayHistory {
         val trackName: String?,
         val artist: String?,
         val albumName: String?,
-        val genre: String?
+        val genre: String?,
+        val percent: Float? = null
     )
 
     private fun file(context: Context): File {
@@ -40,6 +41,7 @@ object PlayHistory {
                 put("artist", event.artist)
                 put("albumName", event.albumName)
                 put("genre", event.genre)
+                if (event.percent != null) put("percent", event.percent)
             }
             f.appendText(obj.toString() + "\n")
         } catch (_: Exception) {}
@@ -60,7 +62,8 @@ object PlayHistory {
                         trackName = o.optString("trackName", null),
                         artist = o.optString("artist", null),
                         albumName = o.optString("albumName", null),
-                        genre = o.optString("genre", null)
+                        genre = o.optString("genre", null),
+                        percent = if (o.has("percent")) o.optDouble("percent", Double.NaN).toFloat().takeIf { !it.isNaN() } else null
                     )
                 )
             } catch (_: Exception) {}

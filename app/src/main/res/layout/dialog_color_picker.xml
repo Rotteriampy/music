@@ -13,7 +13,7 @@
         android:text="Выберите цвет"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="@android:color/white"
+        android:textColor="@color/colorTextPrimary"
         android:layout_marginBottom="12dp"
         android:layout_marginStart="4dp" />
 
@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:text="#000000"
                 android:textSize="16sp"
-                android:textColor="@android:color/white"
+                android:textColor="@color/colorTextPrimary"
                 android:hint="#AARRGGBB"
                 android:textColorHint="#80FFFFFF"
                 android:gravity="start"
@@ -83,7 +83,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Отмена"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:background="@drawable/button_background_red"
             android:layout_marginEnd="6dp"
             android:backgroundTint="@null" />
@@ -94,7 +94,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="ОК"
-            android:textColor="@android:color/white"
+            android:textColor="@color/colorTextPrimary"
             android:background="@drawable/button_background_green"
             android:backgroundTint="@null" />
     </LinearLayout>

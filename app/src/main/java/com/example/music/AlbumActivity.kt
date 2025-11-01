@@ -498,7 +498,22 @@ class AlbumActivity : AppCompatActivity() {
         val editor = prefs.edit()
         editor.putString("album_${albumName}_name", customAlbumName)
         editor.putString("album_${albumName}_cover", customAlbumCover?.toString())
+        editor.putLong("album_${albumName}_timestamp", System.currentTimeMillis())
         editor.apply()
+
+        updateAlbumUI()
+        loadAlbumCover(customAlbumName ?: albumName)
+
+        // Устанавливаем результат для обновления главного экрана
+        setResult(RESULT_OK)
+
+        // Очищаем кэш для этого альбома
+        DiskImageCache.removeByPrefix("album_${albumName}")
+
+        // Если имя изменилось, очищаем кэш и для старого имени
+        if (customAlbumName != albumName) {
+            DiskImageCache.removeByPrefix("album_${customAlbumName}")
+        }
     }
 
     private fun loadCustomAlbumData() {

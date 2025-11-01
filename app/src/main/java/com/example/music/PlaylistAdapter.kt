@@ -56,6 +56,9 @@ class PlaylistAdapter(
     override fun onBindViewHolder(holder: PlaylistViewHolder, position: Int) {
         val playlist = playlists[position]
         holder.playlistName.text = playlist.name
+        // Default text colors from theme
+        holder.playlistName.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextPrimary))
+        holder.tracksInfo.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextSecondary))
 
         // Долгое нажатие для перетаскивания в режиме редактирования
         if (isReorderMode && playlist.id != Playlist.FAVORITES_ID) {
@@ -73,7 +76,12 @@ class PlaylistAdapter(
                 val intent = Intent(context, PlaylistActivity::class.java).apply {
                     putExtra("PLAYLIST_ID", playlist.id)
                 }
-                context.startActivity(intent)
+                // Замените startActivity на launch с launcher'ом
+                if (context is MainActivity) {
+                    context.playlistUpdateLauncher.launch(intent)
+                } else {
+                    context.startActivity(intent)
+                }
             }
         } else {
             holder.itemView.setOnClickListener(null)
@@ -82,12 +90,19 @@ class PlaylistAdapter(
         // Load cover
         if (playlist.id == Playlist.FAVORITES_ID) {
             holder.playlistCover.setImageResource(R.drawable.ic_star_filled_yellow)
+            // Favorites considered as having an avatar/icon -> force white text
+            holder.playlistName.setTextColor(android.graphics.Color.WHITE)
+            holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
         } else {
             playlist.coverUri?.let { uriString ->
-                val key = uriString
-                val cachedBitmap = bitmapCache[key]
+                // ИСПРАВЛЕНИЕ: Используем ключ с временной меткой
+                val cacheKey = getPlaylistCacheKey(playlist.id, "custom_uri_${uriString}")
+                val cachedBitmap = DiskImageCache.getBitmap(cacheKey)
                 if (cachedBitmap != null) {
                     holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, cachedBitmap, 12f))
+                    // Valid avatar present -> white text
+                    holder.playlistName.setTextColor(android.graphics.Color.WHITE)
+                    holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
                 } else {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
@@ -96,55 +111,31 @@ class PlaylistAdapter(
                             val bitmap = BitmapFactory.decodeStream(inputStream)
                             withContext(Dispatchers.Main) {
                                 if (bitmap != null) {
-                                    holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, bitmap, 12f))
-                                    bitmapCache[key] = bitmap
+                                    val rounded = roundToView(holder.playlistCover, bitmap, 12f)
+                                    holder.playlistCover.setImageBitmap(rounded)
+                                    DiskImageCache.putBitmap(cacheKey, rounded)
+                                    holder.playlistName.setTextColor(android.graphics.Color.WHITE)
+                                    holder.tracksInfo.setTextColor(android.graphics.Color.WHITE)
                                 } else {
-                                    val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
-                                    if (ph != null) {
-                                        if (holder.playlistCover.width == 0 || holder.playlistCover.height == 0) {
-                                            holder.playlistCover.post {
-                                                holder.playlistCover.setImageBitmap(
-                                                    roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f)
-                                                )
-                                            }
-                                        } else {
-                                            holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f))
-                                        }
-                                    } else holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+                                    setPlaceholderCover(holder.playlistCover)
+                                    holder.playlistName.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextPrimary))
+                                    holder.tracksInfo.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextSecondary))
                                 }
                             }
                             inputStream?.close()
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
-                                if (ph != null) {
-                                    if (holder.playlistCover.width == 0 || holder.playlistCover.height == 0) {
-                                        holder.playlistCover.post {
-                                            holder.playlistCover.setImageBitmap(
-                                                roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f)
-                                            )
-                                        }
-                                    } else {
-                                        holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f))
-                                    }
-                                } else holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+                                setPlaceholderCover(holder.playlistCover)
+                                holder.playlistName.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextPrimary))
+                                holder.tracksInfo.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextSecondary))
                             }
                         }
                     }
                 }
             } ?: run {
-                val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
-                if (ph != null) {
-                    if (holder.playlistCover.width == 0 || holder.playlistCover.height == 0) {
-                        holder.playlistCover.post {
-                            holder.playlistCover.setImageBitmap(
-                                roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f)
-                            )
-                        }
-                    } else {
-                        holder.playlistCover.setImageBitmap(roundToView(holder.playlistCover, drawableToSizedBitmapForView(holder.playlistCover, ph), 12f))
-                    }
-                } else holder.playlistCover.setImageResource(R.drawable.ic_album_placeholder)
+                setPlaceholderCover(holder.playlistCover)
+                holder.playlistName.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextPrimary))
+                holder.tracksInfo.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.colorTextSecondary))
             }
         }
 
@@ -154,6 +145,21 @@ class PlaylistAdapter(
         val totalMinutes = totalDurationMs / 1000 / 60
         val totalSeconds = (totalDurationMs / 1000) % 60
         holder.tracksInfo.text = "${trackCount} треков • ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}"
+    }
+
+    private fun setPlaceholderCover(imageView: ImageView) {
+        val ph = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_album_placeholder)
+        if (ph != null) {
+            if (imageView.width == 0 || imageView.height == 0) {
+                imageView.post {
+                    imageView.setImageBitmap(
+                        roundToView(imageView, drawableToSizedBitmapForView(imageView, ph), 12f)
+                    )
+                }
+            } else {
+                imageView.setImageBitmap(roundToView(imageView, drawableToSizedBitmapForView(imageView, ph), 12f))
+            }
+        } else imageView.setImageResource(R.drawable.ic_album_placeholder)
     }
 
     override fun getItemCount(): Int = playlists.size
@@ -227,5 +233,16 @@ class PlaylistAdapter(
         drawable.setBounds(0, 0, canvas.width, canvas.height)
         drawable.draw(canvas)
         return bmp
+    }
+
+    // ДОБАВЛЕНО: Методы для работы с временными метками и кэшем
+    private fun getPlaylistTimestamp(playlistId: String): Long {
+        val prefs = context.getSharedPreferences("custom_playlists", Context.MODE_PRIVATE)
+        return prefs.getLong("playlist_${playlistId}_timestamp", 0)
+    }
+
+    private fun getPlaylistCacheKey(playlistId: String, suffix: String = ""): String {
+        val timestamp = getPlaylistTimestamp(playlistId)
+        return "playlist_${playlistId}_${timestamp}_$suffix"
     }
 }

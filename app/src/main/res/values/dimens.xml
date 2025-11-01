@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Базовые размеры -->
+    <dimen name="player_avatar_max_height">400dp</dimen>
+    <dimen name="player_avatar_min_height">200dp</dimen>
+    <dimen name="player_margin_vertical">24dp</dimen>
+    <dimen name="player_padding_horizontal">16dp</dimen>
+    <dimen name="rating_item_padding">12dp</dimen>
+    <dimen name="rating_item_margin">8dp</dimen>
+
+    <!-- Для больших экранов -->
+    <dimen name="player_avatar_max_height_large">500dp</dimen>
+    <dimen name="player_margin_vertical_large">32dp</dimen>
+</resources>
