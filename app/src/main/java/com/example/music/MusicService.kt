@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -35,13 +35,13 @@ class MusicService : Service() {
         const val CHANNEL_ID = "MusicPlayerChannel"
         const val NOTIFICATION_ID = 1
 
-        const val ACTION_PLAY = "com.example.music.ACTION_PLAY"
-        const val ACTION_PAUSE = "com.example.music.ACTION_PAUSE"
-        const val ACTION_NEXT = "com.example.music.ACTION_NEXT"
-        const val ACTION_PREVIOUS = "com.example.music.ACTION_PREVIOUS"
-        const val ACTION_STOP = "com.example.music.ACTION_STOP"
-        const val ACTION_CLOSE = "com.example.music.ACTION_CLOSE"
-        const val ACTION_SET_MODE = "com.example.music.ACTION_SET_MODE"
+        const val ACTION_PLAY = "com.arotter.music.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.arotter.music.ACTION_PAUSE"
+        const val ACTION_NEXT = "com.arotter.music.ACTION_NEXT"
+        const val ACTION_PREVIOUS = "com.arotter.music.ACTION_PREVIOUS"
+        const val ACTION_STOP = "com.arotter.music.ACTION_STOP"
+        const val ACTION_CLOSE = "com.arotter.music.ACTION_CLOSE"
+        const val ACTION_SET_MODE = "com.arotter.music.ACTION_SET_MODE"
 
         var currentTrack: Track? = null
         var isPlaying = false
@@ -85,7 +85,7 @@ class MusicService : Service() {
         playbackMode = prefs.getString("playback_mode", "NORMAL") ?: "NORMAL"
 
         // Регистрируем receiver для изменения режима
-        val filter = IntentFilter("com.example.music.PLAYBACK_MODE_CHANGED")
+        val filter = IntentFilter("com.arotter.music.PLAYBACK_MODE_CHANGED")
         androidx.core.content.ContextCompat.registerReceiver(
             this,
             playbackModeReceiver,
@@ -167,7 +167,7 @@ class MusicService : Service() {
                 prefs.edit().putString("playback_mode", playbackMode).apply()
 
                 // notify UI and refresh notification icon
-                Intent("com.example.music.PLAYBACK_MODE_CHANGED").apply {
+                Intent("com.arotter.music.PLAYBACK_MODE_CHANGED").apply {
                     putExtra("playback_mode", playbackMode)
                     setPackage(applicationContext.packageName)
                 }.also { sendBroadcast(it) }
@@ -233,7 +233,7 @@ class MusicService : Service() {
         hasSeekedThisTrack = false
 
         // Broadcast immediately so UI (lists/queue) updates highlighting without delay
-        Intent("com.example.music.TRACK_CHANGED").apply {
+        Intent("com.arotter.music.TRACK_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
 
@@ -257,7 +257,7 @@ class MusicService : Service() {
                             MusicService.isPlaying = true
                             updatePlaybackState()
                             showNotification()
-                            Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+                            Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
                                 setPackage(applicationContext.packageName)
                             }.also { sendBroadcast(it) }
                         }
@@ -289,10 +289,10 @@ class MusicService : Service() {
                             prefs.edit().putString("playback_mode", playbackMode).apply()
 
                             // Уведомляем UI об изменении состояния и режима
-                            Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+                            Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
                                 setPackage(applicationContext.packageName)
                             }.also { sendBroadcast(it) }
-                            Intent("com.example.music.PLAYBACK_MODE_CHANGED").apply {
+                            Intent("com.arotter.music.PLAYBACK_MODE_CHANGED").apply {
                                 putExtra("playback_mode", playbackMode)
                                 setPackage(applicationContext.packageName)
                             }.also { sendBroadcast(it) }
@@ -357,7 +357,7 @@ class MusicService : Service() {
         isPlaying = false
         updatePlaybackState()
         showNotification()
-        Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+        Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
     }
@@ -368,7 +368,7 @@ class MusicService : Service() {
         startPositionUpdates() // Добавьте этот вызов
         updatePlaybackState()
         showNotification()
-        Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+        Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
     }
@@ -378,7 +378,7 @@ class MusicService : Service() {
             val nextTrack = QueueManager.getCurrentTrack()
             if (nextTrack?.path != null) {
                 // Notify UI about current index change instantly
-                Intent("com.example.music.TRACK_CHANGED").apply {
+                Intent("com.arotter.music.TRACK_CHANGED").apply {
                     setPackage(applicationContext.packageName)
                 }.also { sendBroadcast(it) }
                 playTrack(nextTrack.path)
@@ -404,7 +404,7 @@ class MusicService : Service() {
         if (QueueManager.moveToPreviousTrack(this)) {
             val previousTrack = QueueManager.getCurrentTrack()
             if (previousTrack?.path != null) {
-                Intent("com.example.music.TRACK_CHANGED").apply {
+                Intent("com.arotter.music.TRACK_CHANGED").apply {
                     setPackage(applicationContext.packageName)
                 }.also { sendBroadcast(it) }
                 playTrack(previousTrack.path)
@@ -544,7 +544,7 @@ class MusicService : Service() {
                 )
             } catch (_: Exception) { }
 
-            Intent("com.example.music.STATS_UPDATED").apply {
+            Intent("com.arotter.music.STATS_UPDATED").apply {
                 setPackage(applicationContext.packageName)
             }.also { sendBroadcast(it) }
         }
@@ -607,10 +607,10 @@ class MusicService : Service() {
 
         mediaSession.isActive = false
 
-        Intent("com.example.music.TRACK_CHANGED").apply {
+        Intent("com.arotter.music.TRACK_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
-        Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+        Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
 

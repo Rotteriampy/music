@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.graphics.Color
 import android.content.ContentUris
@@ -944,7 +944,7 @@ class EditTrackActivity : AppCompatActivity() {
 
         // Отправляем broadcast об обновлении
         withContext(Dispatchers.Main) {
-            val intent = Intent("com.example.music.TAGS_UPDATED")
+            val intent = Intent("com.arotter.music.TAGS_UPDATED")
             sendBroadcast(intent)
 
             val message = if (successCount > 0) {
@@ -1295,7 +1295,7 @@ class EditTrackActivity : AppCompatActivity() {
                             Toast.makeText(this@EditTrackActivity, "Теги сохранены!", Toast.LENGTH_SHORT).show()
 
                             // Обновляем треки в приложении
-                            val intent = Intent("com.example.music.TAGS_UPDATED")
+                            val intent = Intent("com.arotter.music.TAGS_UPDATED")
                             sendBroadcast(intent)
 
                             finish()

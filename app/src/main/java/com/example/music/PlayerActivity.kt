@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -63,13 +63,13 @@ class PlayerActivity : AppCompatActivity() {
     private val trackChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                "com.example.music.TRACK_CHANGED" -> {
+                "com.arotter.music.TRACK_CHANGED" -> {
                     updateUI()
                 }
-                "com.example.music.PLAYBACK_STATE_CHANGED" -> {
+                "com.arotter.music.PLAYBACK_STATE_CHANGED" -> {
                     updatePlayPauseButton()
                 }
-                "com.example.music.PLAYBACK_MODE_CHANGED" -> {
+                "com.arotter.music.PLAYBACK_MODE_CHANGED" -> {
                     // Обновляем локальное состояние и иконку режима мгновенно
                     playbackMode = intent.getStringExtra("playback_mode")
                         ?: getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
@@ -126,9 +126,9 @@ class PlayerActivity : AppCompatActivity() {
         btnFindLyricsInPlayer = findViewById(R.id.btnFindLyricsInPlayer)
 
         val filter = IntentFilter().apply {
-            addAction("com.example.music.TRACK_CHANGED")
-            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
-            addAction("com.example.music.PLAYBACK_MODE_CHANGED")
+            addAction("com.arotter.music.TRACK_CHANGED")
+            addAction("com.arotter.music.PLAYBACK_STATE_CHANGED")
+            addAction("com.arotter.music.PLAYBACK_MODE_CHANGED")
         }
         androidx.core.content.ContextCompat.registerReceiver(
             this,
@@ -417,7 +417,7 @@ class PlayerActivity : AppCompatActivity() {
             Toast.makeText(this, "Добавлено в избранное", Toast.LENGTH_SHORT).show()
         }
         updateFavoritesButton(track)
-        sendBroadcast(Intent("com.example.music.FAVORITES_UPDATED"))
+        sendBroadcast(Intent("com.arotter.music.FAVORITES_UPDATED"))
     }
 
     private fun addToQueue(track: Track) {
@@ -572,7 +572,7 @@ class PlayerActivity : AppCompatActivity() {
         prefs.edit().putString("playback_mode", playbackMode).apply()
 
         // Отправляем режим в сервис
-        val intent = Intent("com.example.music.PLAYBACK_MODE_CHANGED")
+        val intent = Intent("com.arotter.music.PLAYBACK_MODE_CHANGED")
         intent.setPackage(packageName)
         intent.putExtra("playback_mode", playbackMode)
         sendBroadcast(intent)

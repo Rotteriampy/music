@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.os.Bundle
 import android.widget.LinearLayout
@@ -59,7 +59,7 @@ class StatsSettingsActivity : AppCompatActivity() {
                 .setPositiveButton("Очистить") { _, _ ->
                     ListeningStats.clearStats(this)
                     Toast.makeText(this, "Статистика очищена", Toast.LENGTH_SHORT).show()
-                    sendBroadcast(Intent("com.example.music.STATS_UPDATED"))
+                    sendBroadcast(Intent("com.arotter.music.STATS_UPDATED"))
                 }
                 .setNegativeButton("Отмена", null)
                 .show().also { ThemeManager.showSystemBars(window, this) }
@@ -141,7 +141,7 @@ class StatsSettingsActivity : AppCompatActivity() {
                 prefs.edit().putString("chart_style", code).apply()
                 tvValue.text = items[position].first
                 // уведомим экран статистики при открытом приложении
-                sendBroadcast(Intent("com.example.music.STATS_UPDATED"))
+                sendBroadcast(Intent("com.arotter.music.STATS_UPDATED"))
                 // стрелка вниз после выбора
                 ivArrow.setImageResource(R.drawable.ic_arrow_down)
             }
@@ -185,7 +185,7 @@ class StatsSettingsActivity : AppCompatActivity() {
 
                         if (success) {
                             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                            sendBroadcast(Intent("com.example.music.STATS_UPDATED"))
+                            sendBroadcast(Intent("com.arotter.music.STATS_UPDATED"))
                         } else {
                             AlertDialog.Builder(this)
                                 .setTitle("Ошибка импорта")

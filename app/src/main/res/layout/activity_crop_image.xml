@@ -31,7 +31,7 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <com.example.music.CropView
+    <com.arotter.music.CropView
         android:id="@+id/cropView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

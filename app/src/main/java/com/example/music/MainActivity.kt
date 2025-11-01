@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -189,7 +189,7 @@ class MainActivity : AppCompatActivity() {
     private val trackChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                "com.example.music.TRACK_CHANGED" -> {
+                "com.arotter.music.TRACK_CHANGED" -> {
                     updateMiniPlayer()
                     val newPath = QueueManager.getCurrentTrack()?.path
                     val oldPath = lastHighlightedPath
@@ -201,7 +201,7 @@ class MainActivity : AppCompatActivity() {
                         lastHighlightedPath = newPath
                     }
                 }
-                "com.example.music.PLAYBACK_STATE_CHANGED" -> {
+                "com.arotter.music.PLAYBACK_STATE_CHANGED" -> {
                     updateMiniPlayerButton()
                     val curPath = QueueManager.getCurrentTrack()?.path
                     if (curPath != null) {
@@ -209,7 +209,7 @@ class MainActivity : AppCompatActivity() {
                         if (idx >= 0) trackList.post { trackAdapter.notifyItemChanged(idx, "HL") }
                     }
                 }
-                "com.example.music.STATS_UPDATED" -> {
+                "com.arotter.music.STATS_UPDATED" -> {
                     trackAdapter.notifyDataSetChanged()
                 }
                 ThemeManager.ACTION_THEME_CHANGED -> {
@@ -294,9 +294,9 @@ class MainActivity : AppCompatActivity() {
         miniPlayerProgressBar = findViewById(R.id.miniPlayerProgressBar)
 
         val filter = IntentFilter().apply {
-            addAction("com.example.music.TRACK_CHANGED")
-            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
-            addAction("com.example.music.STATS_UPDATED")
+            addAction("com.arotter.music.TRACK_CHANGED")
+            addAction("com.arotter.music.PLAYBACK_STATE_CHANGED")
+            addAction("com.arotter.music.STATS_UPDATED")
             addAction(ThemeManager.ACTION_THEME_CHANGED)
         }
         ContextCompat.registerReceiver(

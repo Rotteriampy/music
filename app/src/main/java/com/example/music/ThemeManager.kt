@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.content.Context
 import android.graphics.Color
@@ -11,7 +11,7 @@ object ThemeManager {
     private const val KEY_SECONDARY = "secondary_color"
     private const val KEY_ACCENT = "accent_color"
 
-    const val ACTION_THEME_CHANGED = "com.example.music.THEME_CHANGED"
+    const val ACTION_THEME_CHANGED = "com.arotter.music.THEME_CHANGED"
 
     // Defaults: primary black, secondary white, accent orange
     private const val DEFAULT_PRIMARY = 0xFF000000.toInt()

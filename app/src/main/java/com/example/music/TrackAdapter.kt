@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.content.ContentUris
 import android.content.Context
@@ -336,7 +336,7 @@ class TrackAdapter(
             Toast.makeText(context, "Добавлено в избранное", Toast.LENGTH_SHORT).show()
         }
 
-        context.sendBroadcast(Intent("com.example.music.FAVORITES_UPDATED"))
+        context.sendBroadcast(Intent("com.arotter.music.FAVORITES_UPDATED"))
     }
 
     private fun addToQueue(track: Track, context: Context) {

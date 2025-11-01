@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.app.Application
 import android.content.Context

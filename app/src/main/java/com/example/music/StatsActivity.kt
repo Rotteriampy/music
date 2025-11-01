@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.os.Bundle
 import android.os.Build
@@ -1114,7 +1114,7 @@ class StatsActivity : AppCompatActivity() {
             ts += dayMs
         }
         // Уведомим график
-        sendBroadcast(Intent("com.example.music.STATS_UPDATED").setPackage(packageName))
+        sendBroadcast(Intent("com.arotter.music.STATS_UPDATED").setPackage(packageName))
         return added
     }
 

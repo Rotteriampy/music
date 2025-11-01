@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.media.MediaMetadataRetriever
 import android.content.BroadcastReceiver
@@ -74,7 +74,7 @@ class QueueActivity : AppCompatActivity() {
                 (recyclerView.adapter as? QueueDragAdapter)?.let { adp ->
                     QueueManager.setQueueOrder(this@QueueActivity, adp.items())
                     // Notify app to refresh highlighting/dimming immediately
-                    val br = Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+                    val br = Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
                         setPackage(this@QueueActivity.packageName)
                     }
                     sendBroadcast(br)
@@ -89,8 +89,8 @@ class QueueActivity : AppCompatActivity() {
         itemTouchHelper.attachToRecyclerView(findViewById(R.id.queueRecycler))
         // listen for playback/queue updates to refresh highlighting instantly
         val filter = IntentFilter().apply {
-            addAction("com.example.music.TRACK_CHANGED")
-            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
+            addAction("com.arotter.music.TRACK_CHANGED")
+            addAction("com.arotter.music.PLAYBACK_STATE_CHANGED")
         }
         ContextCompat.registerReceiver(
             this,
@@ -215,7 +215,7 @@ class QueueDragAdapter(
             val t = items[holder.bindingAdapterPosition]
             QueueManager.setCurrentIndex(it.context, holder.bindingAdapterPosition)
             // Immediately refresh UI highlighting (scope to our package)
-            val br = Intent("com.example.music.PLAYBACK_STATE_CHANGED").apply {
+            val br = Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
                 setPackage(it.context.packageName)
             }
             it.context.sendBroadcast(br)

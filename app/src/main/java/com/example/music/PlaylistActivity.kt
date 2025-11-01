@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.app.AlertDialog
 import android.content.Context
@@ -60,8 +60,8 @@ class PlaylistActivity : AppCompatActivity() {
     private val trackUiReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                "com.example.music.TRACK_CHANGED",
-                "com.example.music.PLAYBACK_STATE_CHANGED" -> {
+                "com.arotter.music.TRACK_CHANGED",
+                "com.arotter.music.PLAYBACK_STATE_CHANGED" -> {
                     if (::trackAdapter.isInitialized) trackAdapter.notifyDataSetChanged()
                 }
             }
@@ -184,8 +184,8 @@ class PlaylistActivity : AppCompatActivity() {
         applyContentTopPadding()
         reapplyBarsFromBackground()
         val filter = android.content.IntentFilter().apply {
-            addAction("com.example.music.TRACK_CHANGED")
-            addAction("com.example.music.PLAYBACK_STATE_CHANGED")
+            addAction("com.arotter.music.TRACK_CHANGED")
+            addAction("com.arotter.music.PLAYBACK_STATE_CHANGED")
         }
         androidx.core.content.ContextCompat.registerReceiver(
             this,

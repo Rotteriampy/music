@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.os.Bundle
 import android.widget.Button
@@ -48,7 +48,7 @@ class ThemeSettingsActivity : AppCompatActivity() {
 
     private fun onThemeChanged() {
         refreshThemePreview()
-        sendBroadcast(Intent("com.example.music.THEME_CHANGED"))
+        sendBroadcast(Intent("com.arotter.music.THEME_CHANGED"))
     }
 
     private fun refreshThemePreview() {

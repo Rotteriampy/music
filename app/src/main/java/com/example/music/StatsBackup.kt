@@ -1,4 +1,4 @@
-package com.example.music
+package com.arotter.music
 
 import android.content.Context
 import org.json.JSONArray
@@ -107,7 +107,7 @@ object StatsBackup {
             }
 
             // Notify
-            context.sendBroadcast(android.content.Intent("com.example.music.STATS_UPDATED").setPackage(context.packageName))
+            context.sendBroadcast(android.content.Intent("com.arotter.music.STATS_UPDATED").setPackage(context.packageName))
 
             Pair(true, "Полный импорт статистики выполнен")
         } catch (e: Exception) {

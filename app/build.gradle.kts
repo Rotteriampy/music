@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.music"
+    namespace = "com.arotter.music"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.music"
+        applicationId = "com.arotter.music"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
