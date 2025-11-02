@@ -184,7 +184,17 @@ class EditTrackActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        btnBack.setOnClickListener { finish() }
+        btnBack.setOnClickListener {
+            try {
+                btnBack.animate().cancel()
+                btnBack.rotation = 0f
+                btnBack.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
 
         // Обработчик нажатия на обложку
         coverImageView.setOnClickListener {
@@ -501,6 +511,12 @@ class EditTrackActivity : AppCompatActivity() {
 
             Log.d("BatchUpdate", "Результат обновления: $success")
             Log.d("BatchUpdate", "=== Конец обновления трека ===\n")
+            if (success) {
+                try {
+                    // Обновляем MediaStore для этого файла, чтобы UI сразу увидел изменения
+                    updateMediaStoreForPath(trackPath, newTitle, newArtist, newAlbum)
+                } catch (_: Exception) {}
+            }
             success
 
         } catch (securityException: SecurityException) {
@@ -1371,6 +1387,30 @@ class EditTrackActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun updateMediaStoreForPath(path: String, title: String, artist: String, album: String) {
+        try {
+            val contentResolver = contentResolver
+            val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            val selection = "${MediaStore.Audio.Media.DATA} = ?"
+            val selectionArgs = arrayOf(path)
+
+            val cursor = contentResolver.query(uri, arrayOf(MediaStore.Audio.Media._ID), selection, selectionArgs, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                    val fileUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+
+                    val values = ContentValues().apply {
+                        put(MediaStore.Audio.Media.TITLE, title)
+                        put(MediaStore.Audio.Media.ARTIST, artist)
+                        put(MediaStore.Audio.Media.ALBUM, album)
+                    }
+                    contentResolver.update(fileUri, values, null, null)
+                }
+            }
+        } catch (_: Exception) { }
     }
 
     override fun onResume() {

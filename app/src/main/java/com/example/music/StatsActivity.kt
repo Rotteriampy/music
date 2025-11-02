@@ -121,7 +121,17 @@ class StatsActivity : AppCompatActivity() {
         setLayoutFullscreen()
         applyContentTopPadding()
 
-        back.setOnClickListener { finish() }
+        back.setOnClickListener {
+            try {
+                back.animate().cancel()
+                back.rotation = 0f
+                back.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
 
         initChart()
         initSelectors()

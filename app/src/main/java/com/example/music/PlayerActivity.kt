@@ -481,49 +481,49 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun showSleepTimerDialog() {
-        // Диапазон 5..240 минут с шагом 5
         val minMinutes = 5
         val maxMinutes = 240
         val stepMinutes = 5
+        val defaultMinutes = 30
 
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), 0)
-        }
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_sleep_timer, null)
+        val tvLabel = view.findViewById<TextView>(R.id.tvTimeLabel)
+        val seek = view.findViewById<SeekBar>(R.id.seekTime)
+        val btnReset = view.findViewById<View>(R.id.btnReset)
+        val btnCancel = view.findViewById<View>(R.id.btnCancel)
+        val btnSet = view.findViewById<View>(R.id.btnSet)
 
-        val label = TextView(this).apply {
-            text = "Время: 30 мин"
-            textSize = 16f
-            setTextColor(ContextCompat.getColor(this@PlayerActivity, R.color.colorTextPrimary))
-        }
-
-        val seek = SeekBar(this).apply {
-            max = (maxMinutes - minMinutes) / stepMinutes
-            progress = (30 - minMinutes).coerceAtLeast(0) / stepMinutes
-        }
-
+        fun updateLabel(mins: Int) { tvLabel.text = "Время: ${mins} мин" }
         fun currentMinutes(): Int = minMinutes + seek.progress * stepMinutes
+
+        seek.max = (maxMinutes - minMinutes) / stepMinutes
+        seek.progress = (defaultMinutes - minMinutes).coerceAtLeast(0) / stepMinutes
+        updateLabel(currentMinutes())
 
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
-                label.text = "Время: ${currentMinutes()} мин"
+                updateLabel(currentMinutes())
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
 
-        container.addView(label)
-        container.addView(seek)
+        val dialog = AlertDialog.Builder(this)
+            .setView(view)
+            .create()
 
-        AlertDialog.Builder(this)
-            .setTitle("Автовыключение")
-            .setView(container)
-            .setNegativeButton("Отмена", null)
-            .setNeutralButton("Сбросить") { _, _ -> cancelSleepTimer() }
-            .setPositiveButton("Установить") { _, _ ->
-                sendSleepTimer(currentMinutes())
-            }
-            .show()
+        btnReset.setOnClickListener {
+            cancelSleepTimer()
+            dialog.dismiss()
+        }
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        btnSet.setOnClickListener {
+            sendSleepTimer(currentMinutes())
+            dialog.dismiss()
+        }
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     }
 
     private fun sendSleepTimer(minutes: Int) {

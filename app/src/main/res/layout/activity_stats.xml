@@ -164,7 +164,7 @@
                         android:id="@+id/totalIcon"
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_stats_total"
+                        android:src="@drawable/ic_total"
                         android:layout_marginEnd="8dp"
                         android:tint="@android:color/white" />
 
@@ -197,7 +197,7 @@
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_stats_total"
+                        android:src="@drawable/ic_total_hours"
                         android:layout_marginEnd="8dp"
                         android:tint="@android:color/white" />
 
@@ -231,7 +231,7 @@
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_stats_total"
+                        android:src="@drawable/ic_average"
                         android:layout_marginEnd="8dp"
                         android:tint="@android:color/white" />
 
@@ -299,7 +299,7 @@
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
-                        android:src="@drawable/ic_stats_total"
+                        android:src="@drawable/ic_artist_diverse"
                         android:layout_marginEnd="8dp"
                         android:tint="@android:color/white" />
 

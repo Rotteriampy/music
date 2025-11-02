@@ -87,7 +87,17 @@ class SearchActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
 
         val btnBackSearch: ImageButton = findViewById(R.id.btnBackSearch)
-        btnBackSearch.setOnClickListener { finish() }
+        btnBackSearch.setOnClickListener {
+            try {
+                btnBackSearch.animate().cancel()
+                btnBackSearch.rotation = 0f
+                btnBackSearch.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
 
         // Настройка пустого состояния
         setupEmptyState()

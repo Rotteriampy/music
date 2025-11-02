@@ -27,7 +27,17 @@ class QueueActivity : AppCompatActivity() {
         setContentView(R.layout.activity_queue)
 
         val recycler = findViewById<RecyclerView>(R.id.queueRecycler)
-        findViewById<ImageView>(R.id.queueBackButton)?.setOnClickListener { finish() }
+        findViewById<ImageView>(R.id.queueBackButton)?.setOnClickListener { v ->
+            try {
+                v.animate().cancel()
+                v.rotation = 0f
+                v.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
         val adapter = QueueDragAdapter(onStartDrag = { viewHolder ->
             itemTouchHelper.startDrag(viewHolder)
         })

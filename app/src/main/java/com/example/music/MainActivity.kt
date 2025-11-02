@@ -752,32 +752,22 @@ class MainActivity : AppCompatActivity() {
 
         miniPlayerPlayPause.setOnClickListener {
             tapBounce(miniPlayerPlayPause)
-            if (MusicService.isPlaying) {
-                musicService?.pauseMusic()
-            } else {
-                musicService?.resumeMusic()
-            }
+            val action = if (MusicService.isPlaying) MusicService.ACTION_PAUSE else MusicService.ACTION_PLAY
+            val intent = Intent(this, MusicService::class.java).apply { this.action = action }
+            startService(intent)
             updateMiniPlayerButton()
         }
 
         miniPlayerPrevious.setOnClickListener {
             tapBounce(miniPlayerPrevious)
-            if (QueueManager.moveToPreviousTrack(this)) {
-                val prevTrack = QueueManager.getCurrentTrack()
-                if (prevTrack != null && prevTrack.path != null && File(prevTrack.path).exists()) {
-                    musicService?.playTrack(prevTrack.path)
-                }
-            }
+            val intent = Intent(this, MusicService::class.java).apply { action = MusicService.ACTION_PREVIOUS }
+            startService(intent)
         }
 
         miniPlayerNext.setOnClickListener {
             tapBounce(miniPlayerNext)
-            if (QueueManager.moveToNextTrack(this)) {
-                val nextTrack = QueueManager.getCurrentTrack()
-                if (nextTrack != null && nextTrack.path != null && File(nextTrack.path).exists()) {
-                    musicService?.playTrack(nextTrack.path)
-                }
-            }
+            val intent = Intent(this, MusicService::class.java).apply { action = MusicService.ACTION_NEXT }
+            startService(intent)
         }
     }
 
