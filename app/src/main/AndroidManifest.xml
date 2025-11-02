@@ -26,6 +26,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:theme="@style/SplashTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -33,22 +34,24 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".PlayerActivity" android:exported="false" />
-        <activity android:name=".SettingsActivity" android:exported="false" />
-        <activity android:name=".PlaylistActivity" android:exported="false" />
+        <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".SettingsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".PlaylistActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".SearchActivity"
             android:exported="false"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".AlbumActivity" android:exported="false" />
-        <activity android:name=".ArtistActivity" android:exported="false" />
-        <activity android:name=".GenreActivity" android:exported="false" />
-        <activity android:name=".EditTrackActivity" android:exported="false" />
-        <activity android:name=".LyricsActivity" android:exported="false" />
-        <activity android:name=".QueueActivity" android:exported="false" />
-        <activity android:name=".StatsActivity" android:exported="false" />
-        <activity android:name=".CropImageActivity" android:exported="false" />
-        <activity android:name=".ThemeSettingsActivity" android:exported="false" />
-        <activity android:name=".StatsSettingsActivity" android:exported="false" />
+        <activity android:name=".AlbumActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ArtistActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".GenreActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".EditTrackActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".LyricsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".QueueActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".StatsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".CropImageActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ThemeSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".StatsSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".DuckingSettingsActivity" android:exported="false" android:screenOrientation="portrait" />
 
         <service
             android:name=".MusicService"

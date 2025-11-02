@@ -13,6 +13,7 @@ import android.view.View
 import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.widget.AdapterView
+import android.widget.ImageView
 
 class StatsSettingsActivity : AppCompatActivity() {
 
@@ -21,6 +22,7 @@ class StatsSettingsActivity : AppCompatActivity() {
     }
 
     private lateinit var mainLayout: LinearLayout
+    private lateinit var chartArrow: ImageView
 
     override fun onResume() {
         super.onResume()
@@ -100,20 +102,15 @@ class StatsSettingsActivity : AppCompatActivity() {
     }
 
     private fun applyThemeGradient() {
-        val gradStart = ThemeManager.getPrimaryGradientStart(this)
-        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
-        val gd = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-        mainLayout.background = gd
+        mainLayout.background = ThemeManager.getBackgroundDrawable(this)
     }
 
     private fun initChartTypeSpinner() {
         val sp: Spinner = findViewById(R.id.spChartTypeSettings)
         val row: LinearLayout = findViewById(R.id.chartTypeRow)
         val tvValue: android.widget.TextView = findViewById(R.id.chartTypeValue)
-        val ivArrow: android.widget.ImageView = findViewById(R.id.chartTypeArrow)
+        chartArrow = findViewById(R.id.chartTypeArrow)
+
         val items = listOf(
             "Линия" to "LINEAR",
             "Плавная линия" to "CUBIC",
@@ -137,21 +134,46 @@ class StatsSettingsActivity : AppCompatActivity() {
 
         sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val code = items[position].second
-                prefs.edit().putString("chart_style", code).apply()
-                tvValue.text = items[position].first
-                // уведомим экран статистики при открытом приложении
-                sendBroadcast(Intent("com.arotter.music.STATS_UPDATED"))
-                // стрелка вниз после выбора
-                ivArrow.setImageResource(R.drawable.ic_arrow_down)
+                // синхронизируем скрытый спиннер при выборе через диалог
+                sp.setSelection(position)
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
         row.setOnClickListener {
-            // стрелка вверх при открытии
-            ivArrow.setImageResource(R.drawable.ic_arrow_up)
-            sp.performClick()
+            // лёгкий эффект нажатия и поворот стрелки
+            row.animate().scaleX(0.98f).scaleY(0.98f).setDuration(80).withEndAction {
+                row.animate().scaleX(1f).scaleY(1f).setDuration(80).start()
+            }.start()
+            try { chartArrow.animate().rotation(180f).setDuration(150).start() } catch (_: Exception) {}
+
+            // Диалог выбора типа графика
+            val titles = items.map { it.first }.toTypedArray()
+            val currentIdx = sp.selectedItemPosition
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Тип графика")
+                .setSingleChoiceItems(titles, currentIdx) { dlg, which ->
+                    val code = items[which].second
+                    prefs.edit().putString("chart_style", code).apply()
+                    tvValue.text = items[which].first
+                    sp.setSelection(which)
+                    // уведомим экран статистики
+                    sendBroadcast(Intent("com.arotter.music.STATS_UPDATED"))
+                    try { chartArrow.animate().rotation(0f).setDuration(150).start() } catch (_: Exception) {}
+                    dlg.dismiss()
+                }
+                .setOnDismissListener {
+                    // гарантируем возврат стрелки
+                    try { chartArrow.animate().rotation(0f).setDuration(150).start() } catch (_: Exception) {}
+                }
+                .show().also { ThemeManager.showSystemBars(window, this) }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            try { chartArrow.animate().rotation(0f).setDuration(150).start() } catch (_: Exception) {}
         }
     }
 

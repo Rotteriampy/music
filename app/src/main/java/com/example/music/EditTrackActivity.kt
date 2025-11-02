@@ -211,17 +211,9 @@ class EditTrackActivity : AppCompatActivity() {
     }
 
     private fun setupGradientBackground() {
-        val gradStart = ThemeManager.getPrimaryGradientStart(this)
-        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
-
-        val gd = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-
-        // Находим корневой layout и устанавливаем градиент
+        // Находим корневой layout и устанавливаем фон из ThemeManager (изображение или градиент)
         val rootLayout = findViewById<LinearLayout>(R.id.mainLayout)
-        rootLayout?.background = gd
+        rootLayout?.background = ThemeManager.getBackgroundDrawable(this)
     }
 
     private fun setupAnimations() {

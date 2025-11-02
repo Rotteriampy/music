@@ -32,6 +32,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.RadioGroup
+import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -143,6 +144,7 @@ class MainActivity : AppCompatActivity() {
     private var itemTouchHelper: ItemTouchHelper? = null
     private var isPlaylistReorderMode = false
     private var allPlaylists: List<Playlist> = listOf()
+    private val genreCache: MutableMap<Long, String?> = mutableMapOf()
     private var mainBaseTopPadding: Int = -1
     private var avatarSpin: ObjectAnimator? = null
     private var areTracksLoaded = false
@@ -166,6 +168,30 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             Toast.makeText(this, "Разрешение получено, попробуйте снова", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun getGenreForAudioId(audioId: Long): String? {
+        genreCache[audioId]?.let { return it }
+        val uri = MediaStore.Audio.Genres.getContentUriForAudioId("external", audioId.toInt())
+        var name: String? = null
+        try {
+            contentResolver.query(
+                uri,
+                arrayOf(MediaStore.Audio.Genres.NAME),
+                null,
+                null,
+                null
+            )?.use { c ->
+                if (c.moveToFirst()) {
+                    val idx = c.getColumnIndexOrThrow(MediaStore.Audio.Genres.NAME)
+                    name = c.getString(idx)
+                }
+            }
+        } catch (_: Exception) {
+            name = null
+        }
+        genreCache[audioId] = name
+        return name
     }
 
     private val artistUpdateLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -251,13 +277,13 @@ class MainActivity : AppCompatActivity() {
                 AppCompatDelegate.setDefaultNightMode(mode)
             }
         }
-        // Switch from SplashTheme to the normal app theme before inflating content
         setTheme(R.style.Theme_Music)
         setContentView(R.layout.activity_main)
         DiskImageCache.init(this)
         ListeningStats.loadStats(this)
         FavoritesManager.loadFavorites(this)
 
+        // === Инициализация View ===
         mainLayout = findViewById(R.id.mainLayout)
         tabsScrollView = findViewById(R.id.tabsScrollView)
         tabTracks = findViewById(R.id.tabTracks)
@@ -295,19 +321,15 @@ class MainActivity : AppCompatActivity() {
         miniPlayerNext = findViewById(R.id.miniPlayerNext)
         miniPlayerProgressBar = findViewById(R.id.miniPlayerProgressBar)
 
+        // === Broadcast & Service ===
         val filter = IntentFilter().apply {
             addAction("com.arotter.music.TRACK_CHANGED")
             addAction("com.arotter.music.PLAYBACK_STATE_CHANGED")
             addAction("com.arotter.music.STATS_UPDATED")
             addAction(ThemeManager.ACTION_THEME_CHANGED)
         }
-        ContextCompat.registerReceiver(
-            this,
-            trackChangedReceiver,
-            filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-        // Привязка к сервису
+        ContextCompat.registerReceiver(this, trackChangedReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+
         Intent(this, MusicService::class.java).also { intent ->
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
@@ -324,11 +346,9 @@ class MainActivity : AppCompatActivity() {
         setupArtistItemTouchHelper()
         setupGenreItemTouchHelper()
 
-        // Инициализируем анимационное состояние подчёркиваний вкладок
         initTabIndicators()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // Рисуем контент под статус-баром и делаем его прозрачным
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             @Suppress("DEPRECATION")
             run {
@@ -339,16 +359,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Показываем системные панели, включаем layout под статус-бар и применяем цвет нав-бара/иконок
-        run {
-            ThemeManager.showSystemBars(window, this)
-            setLayoutFullscreen()
-            applyContentTopPadding()
-            reapplyBarsFromBackground()
-        }
+        ThemeManager.showSystemBars(window, this)
+        setLayoutFullscreen()
+        applyContentTopPadding()
+        reapplyBarsFromBackground()
 
         createPlaylistButton = findViewById(R.id.createPlaylistButton)
 
+        // === RecyclerViews ===
         trackList.layoutManager = LinearLayoutManager(this)
         trackAdapter = TrackAdapter(filteredTracks as MutableList<Track>, false)
         trackList.adapter = trackAdapter
@@ -356,13 +374,6 @@ class MainActivity : AppCompatActivity() {
         playlistList.layoutManager = GridLayoutManager(this, 2)
         playlistAdapter = PlaylistAdapter(mutableListOf(), this)
         playlistList.adapter = playlistAdapter
-
-        // Smooth item appearance on scroll/attach
-        attachAppearAnimation(trackList)
-        attachAppearAnimation(playlistList)
-        attachAppearAnimation(albumList)
-        attachAppearAnimation(artistList)
-        attachAppearAnimation(genreList)
 
         albumList.layoutManager = GridLayoutManager(this, 2)
         albumAdapter = AlbumAdapter(listOf(), this)
@@ -376,7 +387,25 @@ class MainActivity : AppCompatActivity() {
         genreAdapter = GenreAdapter(this, listOf())
         genreList.adapter = genreAdapter
 
+        // === ПЛАВНАЯ АНИМАЦИЯ ПОЯВЛЕНИЯ ===
+        attachAppearAnimation(trackList)
+        attachAppearAnimation(playlistList)
+        attachAppearAnimation(albumList)
+        attachAppearAnimation(artistList)
+        attachAppearAnimation(genreList)
 
+        // === ОТКЛЮЧАЕМ АНИМАТОР ДЛЯ DRAG-AND-DROP (КРИТИЧНО!) ===
+        albumList.itemAnimator = null
+        artistList.itemAnimator = null
+        genreList.itemAnimator = null  // уже было
+
+        // === Плавность через ViewCache ===
+        artistList.setHasFixedSize(true)
+        artistList.setItemViewCacheSize(20)
+        genreList.setHasFixedSize(true)
+        genreList.setItemViewCacheSize(20)
+
+        // === Gallery & Crop ===
         createPlaylistGalleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
                 val intent = Intent(this, CropImageActivity::class.java)
@@ -389,17 +418,15 @@ class MainActivity : AppCompatActivity() {
             if (result.resultCode == RESULT_OK) {
                 result.data?.data?.let { uri ->
                     selectedCoverUri = uri
-                    // Обновим ImageView в диалоге, если он открыт
                     val dialog = currentDialog
                     val coverImageView = dialog?.findViewById<ImageView>(R.id.createPlaylistCover)
                     coverImageView?.setImageURI(uri)
                 }
             }
         }
-        searchButton.setOnClickListener {
-            val intent = Intent(this, SearchActivity::class.java)
-            startActivity(intent)
-        }
+
+        // === Кнопки ===
+        searchButton.setOnClickListener { startActivity(Intent(this, SearchActivity::class.java)) }
         sortButton.setOnClickListener { showSortMenu(it) }
         shuffleButton.setOnClickListener { onShuffleClick() }
 
@@ -408,27 +435,6 @@ class MainActivity : AppCompatActivity() {
         tabAlbums.setOnClickListener { selectTab(tabAlbums) }
         tabArtists.setOnClickListener { selectTab(tabArtists) }
         tabGenres.setOnClickListener { selectTab(tabGenres) }
-
-        val itemAnimator = DefaultItemAnimator()
-        itemAnimator.moveDuration = 300
-
-        albumList.itemAnimator = itemAnimator
-        artistList.itemAnimator = itemAnimator
-        // Use a safer animator for genres; we'll disable it to avoid conflicts with custom animations
-        genreList.itemAnimator = null
-
-        // RecyclerView perf tweaks (notably for Artists/Genres tabs)
-        try {
-            (artistList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false
-        } catch (_: Exception) {}
-        artistList.setHasFixedSize(true)
-        artistList.setItemViewCacheSize(20)
-
-        try {
-            (genreList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false
-        } catch (_: Exception) {}
-        genreList.setHasFixedSize(true)
-        genreList.setItemViewCacheSize(20)
 
         PlaylistManager.loadPlaylists(this)
         PlaylistManager.createFavoritesIfNotExists(this)
@@ -448,6 +454,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         ListeningStats.loadStats(this)
+        applySavedTabsOrder()
         restoreColor()
         // Безопасно обновляем адаптер (проверка инициализации)
         if (::trackAdapter.isInitialized) {
@@ -493,6 +500,34 @@ class MainActivity : AppCompatActivity() {
         setLayoutFullscreen()
         applyContentTopPadding()
         reapplyBarsFromBackground()
+    }
+
+    private fun applySavedTabsOrder() {
+        try {
+            val parent = tabsScrollView.getChildAt(0) as? LinearLayout ?: return
+            val order = loadTabsOrder()
+            val map = mapOf(
+                "tracks" to tabTracks,
+                "playlists" to tabPlaylists,
+                "albums" to tabAlbums,
+                "artists" to tabArtists,
+                "genres" to tabGenres
+            )
+            order.forEach { key ->
+                val v = map[key]
+                if (v != null) {
+                    parent.removeView(v)
+                    parent.addView(v)
+                }
+            }
+        } catch (_: Exception) { }
+    }
+
+    private fun loadTabsOrder(): List<String> {
+        val prefs = getSharedPreferences("tabs_prefs", MODE_PRIVATE)
+        val def = "tracks,playlists,albums,artists,genres"
+        val s = prefs.getString("order", def) ?: def
+        return s.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -586,6 +621,21 @@ class MainActivity : AppCompatActivity() {
             }
             decor.systemUiVisibility = vis
         }
+    }
+
+    private fun tapBounce(v: View) {
+        try {
+            val s1 = ObjectAnimator.ofFloat(v, View.SCALE_X, 1f, 0.92f)
+            val s2 = ObjectAnimator.ofFloat(v, View.SCALE_Y, 1f, 0.92f)
+            val r1 = ObjectAnimator.ofFloat(v, View.SCALE_X, 0.92f, 1f)
+            val r2 = ObjectAnimator.ofFloat(v, View.SCALE_Y, 0.92f, 1f)
+            android.animation.AnimatorSet().apply {
+                play(s1).with(s2)
+                play(r1).with(r2).after(s1)
+                duration = 80L
+                start()
+            }
+        } catch (_: Exception) {}
     }
 
     private fun applyBarsFromBitmapTop(bmp: Bitmap) {
@@ -701,6 +751,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         miniPlayerPlayPause.setOnClickListener {
+            tapBounce(miniPlayerPlayPause)
             if (MusicService.isPlaying) {
                 musicService?.pauseMusic()
             } else {
@@ -710,6 +761,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         miniPlayerPrevious.setOnClickListener {
+            tapBounce(miniPlayerPrevious)
             if (QueueManager.moveToPreviousTrack(this)) {
                 val prevTrack = QueueManager.getCurrentTrack()
                 if (prevTrack != null && prevTrack.path != null && File(prevTrack.path).exists()) {
@@ -719,6 +771,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         miniPlayerNext.setOnClickListener {
+            tapBounce(miniPlayerNext)
             if (QueueManager.moveToNextTrack(this)) {
                 val nextTrack = QueueManager.getCurrentTrack()
                 if (nextTrack != null && nextTrack.path != null && File(nextTrack.path).exists()) {
@@ -1261,12 +1314,8 @@ class MainActivity : AppCompatActivity() {
         val gradStart = ThemeManager.getPrimaryGradientStart(this)
         val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
 
-        // Градиентный фон
-        val gd = android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-        mainLayout.background = gd
+        // Фон экрана: изображение из темы или градиент
+        mainLayout.background = ThemeManager.getBackgroundDrawable(this)
 
         // Мини-плеер: тот же градиент, но немного светлее
         val lightStart = lighten(gradStart, 0.15f)
@@ -1502,6 +1551,15 @@ class MainActivity : AppCompatActivity() {
         val sortDirectionIndicator = dialogView.findViewById<View>(R.id.sortDirectionIndicator)
         val btnApplySort = dialogView.findViewById<Button>(R.id.btnApplySort)
         val btnCancelSort = dialogView.findViewById<Button>(R.id.btnCancelSort)
+        // Collapsible group section
+        val groupHeader = dialogView.findViewById<LinearLayout>(R.id.groupSortHeader)
+        val groupArrow = dialogView.findViewById<ImageView>(R.id.groupArrow)
+        val rbArtist = dialogView.findViewById<RadioButton>(R.id.sortByArtist)
+        val rbAlbum = dialogView.findViewById<RadioButton>(R.id.sortByAlbum)
+        val rbGenre = dialogView.findViewById<RadioButton>(R.id.sortByGenre)
+        val divArtist = dialogView.findViewById<View>(R.id.dividerArtist)
+        val divAlbum = dialogView.findViewById<View>(R.id.dividerAlbum)
+        val divGenre = dialogView.findViewById<View>(R.id.dividerGenre)
 
         // Установка текущих значений
         when (sortType) {
@@ -1510,6 +1568,8 @@ class MainActivity : AppCompatActivity() {
             2 -> sortTypeGroup.check(R.id.sortByArtist)
             3 -> sortTypeGroup.check(R.id.sortByDuration)
             4 -> sortTypeGroup.check(R.id.sortByPlays)
+            5 -> sortTypeGroup.check(R.id.sortByAlbum)
+            6 -> sortTypeGroup.check(R.id.sortByGenre)
         }
 
         // Обновление индикатора направления
@@ -1534,6 +1594,37 @@ class MainActivity : AppCompatActivity() {
         btnSortAsc.setOnClickListener(directionClickListener)
         btnSortDesc.setOnClickListener(directionClickListener)
 
+        // Toggle helpers for grouped options
+        fun setGroupExpanded(expanded: Boolean, animate: Boolean) {
+            val visibility = if (expanded) View.VISIBLE else View.GONE
+            divArtist.visibility = visibility
+            rbArtist.visibility = visibility
+            divAlbum.visibility = visibility
+            rbAlbum.visibility = visibility
+            divGenre.visibility = visibility
+            rbGenre.visibility = visibility
+            val targetRotation = if (expanded) 0f else -90f
+            if (animate) {
+                groupArrow.animate().rotation(targetRotation).setDuration(180).start()
+            } else {
+                groupArrow.rotation = targetRotation
+            }
+        }
+
+        var groupExpanded = false
+        // Auto-expand if current sort is one of grouped options
+        if (sortType in listOf(2, 5, 6)) {
+            groupExpanded = true
+            setGroupExpanded(true, animate = false)
+        } else {
+            setGroupExpanded(false, animate = false)
+        }
+
+        groupHeader.setOnClickListener {
+            groupExpanded = !groupExpanded
+            setGroupExpanded(groupExpanded, animate = true)
+        }
+
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .create()
@@ -1548,6 +1639,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.sortByArtist -> 2
                 R.id.sortByDuration -> 3
                 R.id.sortByPlays -> 4
+                R.id.sortByAlbum -> 5
+                R.id.sortByGenre -> 6
                 else -> 0
             }
             applyFilterAndSort(true)
@@ -1655,6 +1748,20 @@ class MainActivity : AppCompatActivity() {
                     filteredTracks.sortBy { ListeningStats.getPlayCount(it.path ?: "") }
                 } else {
                     filteredTracks.sortByDescending { ListeningStats.getPlayCount(it.path ?: "") }
+                }
+            }
+            5 -> { // by album name
+                if (sortAscending) {
+                    filteredTracks.sortBy { it.albumName?.lowercase() }
+                } else {
+                    filteredTracks.sortByDescending { it.albumName?.lowercase() }
+                }
+            }
+            6 -> { // by genre
+                if (sortAscending) {
+                    filteredTracks.sortBy { it.genre?.lowercase() }
+                } else {
+                    filteredTracks.sortByDescending { it.genre?.lowercase() }
                 }
             }
         }
@@ -1919,6 +2026,7 @@ class MainActivity : AppCompatActivity() {
                         val path = cursor.getString(dataColumn)
                         val duration = cursor.getLong(durationColumn)
                         val dateModified = cursor.getLong(dateModifiedColumn)
+                        val genreName = try { getGenreForAudioId(cursor.getLong(idColumn)) } catch (_: Exception) { null }
                         if (path != null && File(path).exists()) {
                             loadedTracks.add(
                                 Track(
@@ -1927,6 +2035,7 @@ class MainActivity : AppCompatActivity() {
                                     artist = artist,
                                     albumId = albumId,
                                     albumName = albumName,
+                                    genre = genreName,
                                     path = path,
                                     duration = duration,
                                     dateModified = dateModified
@@ -1954,6 +2063,14 @@ class MainActivity : AppCompatActivity() {
             ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
             0
         ) {
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+                    // Отпустили: просто сохраняем порядок. Данные уже в albumsOrder.
+                    albumList.post { saveAlbumOrder() }
+                }
+            }
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -1964,9 +2081,7 @@ class MainActivity : AppCompatActivity() {
 
                 val item = albumsOrder.removeAt(fromPosition)
                 albumsOrder.add(toPosition, item)
-                albumAdapter.updateAlbums(albumsOrder)
                 recyclerView.adapter?.notifyItemMoved(fromPosition, toPosition)
-
                 return true
             }
 
@@ -2025,6 +2140,13 @@ class MainActivity : AppCompatActivity() {
             ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
             0
         ) {
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+                    artistList.post { saveArtistOrder() }
+                }
+            }
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -2035,9 +2157,7 @@ class MainActivity : AppCompatActivity() {
 
                 val item = artistsOrder.removeAt(fromPosition)
                 artistsOrder.add(toPosition, item)
-                artistAdapter.updateArtists(artistsOrder)
                 recyclerView.adapter?.notifyItemMoved(fromPosition, toPosition)
-
                 return true
             }
 
@@ -2096,6 +2216,13 @@ class MainActivity : AppCompatActivity() {
             ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
             0
         ) {
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
+                    genreList.post { saveGenreOrder() }
+                }
+            }
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -2106,9 +2233,7 @@ class MainActivity : AppCompatActivity() {
 
                 val item = genresOrder.removeAt(fromPosition)
                 genresOrder.add(toPosition, item)
-                genreAdapter.updateGenres(genresOrder)
                 recyclerView.adapter?.notifyItemMoved(fromPosition, toPosition)
-
                 return true
             }
 

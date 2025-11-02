@@ -33,6 +33,9 @@ import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicBlur
 import java.io.File
 import android.util.TypedValue
+import android.animation.ObjectAnimator
+import android.animation.AnimatorSet
+import android.view.View
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -150,6 +153,8 @@ class PlayerActivity : AppCompatActivity() {
         applyAccentToPlayPause()
         showPlayerUI()
 
+        // Вращение обложки убрано по пожеланию
+
         val trackPath = intent.getStringExtra("TRACK_PATH")
         if (trackPath != null) {
             val serviceIntent = Intent(this, MusicService::class.java).apply {
@@ -195,10 +200,12 @@ class PlayerActivity : AppCompatActivity() {
         updatePlaybackModeIcon()
 
         btnPlaybackMode.setOnClickListener {
+            tapBounce(btnPlaybackMode)
             togglePlaybackMode()
         }
 
         nextButton.setOnClickListener {
+            tapBounce(nextButton)
             musicService?.let {
                 val intent = Intent(this, MusicService::class.java).apply {
                     action = MusicService.ACTION_NEXT
@@ -208,6 +215,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         previousButton.setOnClickListener {
+            tapBounce(previousButton)
             musicService?.let {
                 val intent = Intent(this, MusicService::class.java).apply {
                     action = MusicService.ACTION_PREVIOUS
@@ -216,10 +224,21 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        backButton.setOnClickListener { finish() }
+        backButton.setOnClickListener {
+            try {
+                backButton.animate().cancel()
+                backButton.rotation = 0f
+                backButton.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
 
         // Top-right 'more' button: open same options menu as in track list
         more.setOnClickListener {
+            tapBounce(more)
             val trackPath = intent.getStringExtra("TRACK_PATH")
             val trackForMenu = currentTrack ?: findFullTrack(trackPath) ?: Track(
                 name = intent.getStringExtra("TRACK_NAME") ?: "",
@@ -258,11 +277,47 @@ class PlayerActivity : AppCompatActivity() {
                     currentTime.text = formatTime(progress)
                 }
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                seekBar ?: return
+                try {
+                    seekBar.animate().cancel()
+                    currentTime.animate().cancel()
+                    seekBar.animate()
+                        .scaleX(1.03f)
+                        .scaleY(1.03f)
+                        .setDuration(120L)
+                        .start()
+                    currentTime.pivotX = 0f
+                    currentTime.pivotY = currentTime.height.toFloat()
+                    currentTime.animate()
+                        .scaleX(1.15f)
+                        .scaleY(1.15f)
+                        .alpha(1f)
+                        .setDuration(120L)
+                        .start()
+                } catch (_: Exception) {}
+            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                seekBar ?: return
+                try {
+                    seekBar.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(120L)
+                        .start()
+                    currentTime.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(120L)
+                        .start()
+                } catch (_: Exception) {}
+            }
         })
 
-        playPauseButton.setOnClickListener { togglePlayPause() }
+        playPauseButton.setOnClickListener {
+            tapBounce(playPauseButton)
+            togglePlayPause()
+        }
 
         val trackNameStr = intent.getStringExtra("TRACK_NAME")
         val trackArtistStr = intent.getStringExtra("TRACK_ARTIST")
@@ -294,9 +349,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun showPlayerUI() {
-        playerContainer.visibility = android.view.View.VISIBLE
-        lyricsContainer.visibility = android.view.View.GONE
-        // optional: highlight active tab
+        animateTabSwitch(show = playerContainer, hide = lyricsContainer, fromRight = false)
         btnSongTab.setTextColor(ThemeManager.getAccentColor(this))
         btnLyricsTab.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
@@ -328,12 +381,31 @@ class PlayerActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_VIEW, uri)
             startActivity(intent)
         }
-
-        playerContainer.visibility = android.view.View.GONE
-        lyricsContainer.visibility = android.view.View.VISIBLE
-        // optional: highlight active tab
+        animateTabSwitch(show = lyricsContainer, hide = playerContainer, fromRight = true)
         btnSongTab.setTextColor(ContextCompat.getColor(this, android.R.color.white))
         btnLyricsTab.setTextColor(ThemeManager.getAccentColor(this))
+    }
+
+    private fun animateTabSwitch(show: android.view.View, hide: android.view.View, fromRight: Boolean) {
+        val distance = dp(24).toFloat()
+        show.visibility = android.view.View.VISIBLE
+        show.alpha = 0f
+        show.translationX = if (fromRight) distance else -distance
+        hide.animate()
+            .alpha(0f)
+            .translationX(if (fromRight) -distance else distance)
+            .setDuration(180)
+            .withEndAction {
+                hide.visibility = android.view.View.GONE
+                hide.alpha = 1f
+                hide.translationX = 0f
+            }
+            .start()
+        show.animate()
+            .alpha(1f)
+            .translationX(0f)
+            .setDuration(180)
+            .start()
     }
 
     private fun applyAccentToPlayPause() {
@@ -367,6 +439,7 @@ class PlayerActivity : AppCompatActivity() {
             "Добавить в очередь",
             "Информация о треке",
             "Поделиться",
+            "Автовыключение",
             "Установить как рингтон",
             "Добавить в плейлист",
             "Редактировать теги",
@@ -396,14 +469,78 @@ class PlayerActivity : AppCompatActivity() {
                 1 -> addToQueue(track)
                 2 -> TrackInfoDialog(this, track).show()
                 3 -> shareTrack(track)
-                4 -> setAsRingtone(track)
-                5 -> showPlaylistDialog(track)
-                6 -> showEditTags(track)
-                7 -> confirmDelete(track)
-                8 -> startActivity(Intent(this, QueueActivity::class.java))
+                4 -> showSleepTimerDialog()
+                5 -> setAsRingtone(track)
+                6 -> showPlaylistDialog(track)
+                7 -> showEditTags(track)
+                8 -> confirmDelete(track)
+                9 -> startActivity(Intent(this, QueueActivity::class.java))
             }
         }
         builder.show()
+    }
+
+    private fun showSleepTimerDialog() {
+        // Диапазон 5..240 минут с шагом 5
+        val minMinutes = 5
+        val maxMinutes = 240
+        val stepMinutes = 5
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+
+        val label = TextView(this).apply {
+            text = "Время: 30 мин"
+            textSize = 16f
+            setTextColor(ContextCompat.getColor(this@PlayerActivity, R.color.colorTextPrimary))
+        }
+
+        val seek = SeekBar(this).apply {
+            max = (maxMinutes - minMinutes) / stepMinutes
+            progress = (30 - minMinutes).coerceAtLeast(0) / stepMinutes
+        }
+
+        fun currentMinutes(): Int = minMinutes + seek.progress * stepMinutes
+
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                label.text = "Время: ${currentMinutes()} мин"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        container.addView(label)
+        container.addView(seek)
+
+        AlertDialog.Builder(this)
+            .setTitle("Автовыключение")
+            .setView(container)
+            .setNegativeButton("Отмена", null)
+            .setNeutralButton("Сбросить") { _, _ -> cancelSleepTimer() }
+            .setPositiveButton("Установить") { _, _ ->
+                sendSleepTimer(currentMinutes())
+            }
+            .show()
+    }
+
+    private fun sendSleepTimer(minutes: Int) {
+        try {
+            val intent = Intent(this, MusicService::class.java).apply {
+                action = MusicService.ACTION_SET_SLEEP
+                putExtra("sleep_minutes", minutes)
+            }
+            startService(intent)
+        } catch (_: Exception) {}
+    }
+
+    private fun cancelSleepTimer() {
+        try {
+            val intent = Intent(this, MusicService::class.java).apply { action = MusicService.ACTION_CANCEL_SLEEP }
+            startService(intent)
+        } catch (_: Exception) {}
     }
 
     private fun showTrackMenu(anchor: android.view.View, track: Track) {
@@ -556,6 +693,11 @@ class PlayerActivity : AppCompatActivity() {
 
         dialogView.findViewById<LinearLayout>(R.id.tvAddToPlaylist).setOnClickListener {
             showPlaylistDialog(track)
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<LinearLayout>(R.id.tvSleepTimer).setOnClickListener {
+            showSleepTimerDialog()
             dialog.dismiss()
         }
 
@@ -798,13 +940,14 @@ class PlayerActivity : AppCompatActivity() {
                 val artBytes = retriever.embeddedPicture
                 if (artBytes != null) {
                     val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                    setRounded(trackAvatar, bitmap)
-                    applyBlurBackground(bitmap)
+                    crossfadeImage(trackAvatar) { setRounded(trackAvatar, bitmap) }
+                    crossfadeImage(playerBlurBg) { applyBlurBackground(bitmap) }
                     playerBlurBg.visibility = android.view.View.VISIBLE
                 } else {
                     // Fallback: пробуем вытащить обложку по albumId из MediaStore
                     val albumId = currentTrack?.albumId
                     var fallbackBitmap: android.graphics.Bitmap? = null
+
                     if (albumId != null) {
                         try {
                             val uri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
@@ -815,15 +958,14 @@ class PlayerActivity : AppCompatActivity() {
                     }
 
                     if (fallbackBitmap != null) {
-                        setRounded(trackAvatar, fallbackBitmap!!)
-                        applyBlurBackground(fallbackBitmap!!)
+                        crossfadeImage(trackAvatar) { setRounded(trackAvatar, fallbackBitmap!!) }
+                        crossfadeImage(playerBlurBg) { applyBlurBackground(fallbackBitmap!!) }
                         playerBlurBg.visibility = android.view.View.VISIBLE
                     } else {
                         // Скруглённый плейсхолдер (рендерим по размеру view, чтобы не было мыла)
                         val ph = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_album_placeholder)
-                        ph?.let { setRounded(trackAvatar, drawableToSizedBitmapForView(trackAvatar, it), 12f) } ?: run {
-                            trackAvatar.setImageResource(R.drawable.ic_album_placeholder)
-                        }
+                        ph?.let { crossfadeImage(trackAvatar) { setRounded(trackAvatar, drawableToSizedBitmapForView(trackAvatar, it), 12f) } }
+                            ?: run { trackAvatar.setImageResource(R.drawable.ic_album_placeholder) }
                         playerBlurBg.setImageDrawable(null)
                         playerBlurBg.visibility = android.view.View.GONE
                     }
@@ -831,13 +973,36 @@ class PlayerActivity : AppCompatActivity() {
                 retriever.release()
             } catch (e: Exception) {
                 val ph = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_album_placeholder)
-                ph?.let { setRounded(trackAvatar, drawableToSizedBitmapForView(trackAvatar, it), 12f) } ?: run {
-                    trackAvatar.setImageResource(R.drawable.ic_album_placeholder)
-                }
+                ph?.let { crossfadeImage(trackAvatar) { setRounded(trackAvatar, drawableToSizedBitmapForView(trackAvatar, it), 12f) } }
+                    ?: run { trackAvatar.setImageResource(R.drawable.ic_album_placeholder) }
                 playerBlurBg.setImageDrawable(null)
                 playerBlurBg.visibility = android.view.View.GONE
             }
         }
+    }
+
+    private fun crossfadeImage(view: ImageView, applyImage: () -> Unit) {
+        try {
+            view.animate().cancel()
+            view.alpha = 0f
+            applyImage()
+            view.animate().alpha(1f).setDuration(200L).start()
+        } catch (_: Exception) { applyImage() }
+    }
+
+    private fun tapBounce(v: android.view.View) {
+        try {
+            val s1 = ObjectAnimator.ofFloat(v, android.view.View.SCALE_X, 1f, 0.92f)
+            val s2 = ObjectAnimator.ofFloat(v, android.view.View.SCALE_Y, 1f, 0.92f)
+            val r1 = ObjectAnimator.ofFloat(v, android.view.View.SCALE_X, 0.92f, 1f)
+            val r2 = ObjectAnimator.ofFloat(v, android.view.View.SCALE_Y, 0.92f, 1f)
+            AnimatorSet().apply {
+                play(s1).with(s2)
+                play(r1).with(r2).after(s1)
+                duration = 80L
+                start()
+            }
+        } catch (_: Exception) {}
     }
 
     private fun applyBlurBackground(src: android.graphics.Bitmap) {
@@ -1269,11 +1434,36 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun updateFavoritesButton(track: Track) {
-        if (PlaylistManager.isInFavorites(track)) {
-            favoritesButton.setImageResource(R.drawable.ic_favorite_filled)
-        } else {
-            favoritesButton.setImageResource(R.drawable.ic_favorite_border)
-        }
+        val liked = PlaylistManager.isInFavorites(track)
+        favoritesButton.setImageResource(if (liked) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_border)
+        heartPulse(favoritesButton, liked)
+    }
+
+    private fun heartPulse(v: ImageButton, liked: Boolean) {
+        try {
+            // Более заметная пульсация при добавлении, мягкая при удалении
+            val minScale = if (liked) 0.8f else 0.95f
+            val maxScale = if (liked) 1.25f else 1.05f
+            val s1x = ObjectAnimator.ofFloat(v, android.view.View.SCALE_X, 1f, minScale)
+            val s1y = ObjectAnimator.ofFloat(v, android.view.View.SCALE_Y, 1f, minScale)
+            val s2x = ObjectAnimator.ofFloat(v, android.view.View.SCALE_X, minScale, maxScale)
+            val s2y = ObjectAnimator.ofFloat(v, android.view.View.SCALE_Y, minScale, maxScale)
+            val s3x = ObjectAnimator.ofFloat(v, android.view.View.SCALE_X, maxScale, 1f)
+            val s3y = ObjectAnimator.ofFloat(v, android.view.View.SCALE_Y, maxScale, 1f)
+            AnimatorSet().apply {
+                play(s1x).with(s1y)
+                play(s2x).with(s2y).after(s1x)
+                play(s3x).with(s3y).after(s2x)
+                duration = if (liked) 220L else 140L
+                start()
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun bounceAnimation(v: View) {
+        val anim = ObjectAnimator.ofFloat(v, android.view.View.SCALE_X, 1f, 0.9f, 1f)
+        anim.duration = 200
+        anim.start()
     }
 
     private fun findFullTrack(trackPath: String?): Track? {

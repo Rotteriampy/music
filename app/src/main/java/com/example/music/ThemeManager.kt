@@ -2,6 +2,10 @@ package com.arotter.music
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.widget.ImageView
 
 object ThemeManager {
     private const val PREFS = "app_theme"
@@ -10,6 +14,8 @@ object ThemeManager {
     private const val KEY_PRIMARY_GRADIENT_END = "primary_gradient_end"
     private const val KEY_SECONDARY = "secondary_color"
     private const val KEY_ACCENT = "accent_color"
+    private const val KEY_BG_MODE = "background_mode" // 0: gradient, 1: image
+    private const val KEY_BG_IMAGE_URI = "background_image_uri"
 
     const val ACTION_THEME_CHANGED = "com.arotter.music.THEME_CHANGED"
 
@@ -40,6 +46,12 @@ object ThemeManager {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt(KEY_ACCENT, DEFAULT_ACCENT)
 
+    fun isBackgroundImageEnabled(ctx: Context): Boolean =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_BG_MODE, 0) == 1
+
+    fun getBackgroundImageUri(ctx: Context): String? =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_BG_IMAGE_URI, null)
+
     fun setPrimaryColor(ctx: Context, color: Int) {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putInt(KEY_PRIMARY, color).apply()
@@ -65,9 +77,53 @@ object ThemeManager {
             .edit().putInt(KEY_ACCENT, color).apply()
     }
 
+    fun setBackgroundImage(ctx: Context, uri: Uri?) {
+        val ed = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        if (uri != null) {
+            ed.putInt(KEY_BG_MODE, 1)
+            ed.putString(KEY_BG_IMAGE_URI, uri.toString())
+        } else {
+            ed.putInt(KEY_BG_MODE, 0)
+            ed.remove(KEY_BG_IMAGE_URI)
+        }
+        ed.apply()
+    }
+
     fun parseHexOrNull(hex: String): Int? = try {
         Color.parseColor(if (hex.startsWith("#")) hex else "#" + hex)
     } catch (e: Exception) { null }
+
+    // Build a gradient drawable based on current theme
+    private fun buildGradientDrawable(ctx: Context): GradientDrawable {
+        val gd = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(getPrimaryGradientStart(ctx), getPrimaryGradientEnd(ctx))
+        )
+        return gd
+    }
+
+    // Returns a drawable for the app background: either gradient or image.
+    fun getBackgroundDrawable(ctx: Context): Drawable? {
+        return if (isBackgroundImageEnabled(ctx)) {
+            val uriStr = getBackgroundImageUri(ctx)
+            if (!uriStr.isNullOrEmpty()) {
+                try {
+                    val uri = Uri.parse(uriStr)
+                    val stream = ctx.contentResolver.openInputStream(uri)
+                    val bmp = stream.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    if (bmp != null) android.graphics.drawable.BitmapDrawable(ctx.resources, bmp) else buildGradientDrawable(ctx)
+                } catch (_: Exception) {
+                    // fallback to gradient if image failed to load
+                    buildGradientDrawable(ctx)
+                }
+            } else buildGradientDrawable(ctx)
+        } else buildGradientDrawable(ctx)
+    }
+
+    // Applies background (image or gradient) to a generic View.
+    fun applyBackground(view: android.view.View, ctx: Context) {
+        view.background = getBackgroundDrawable(ctx)
+    }
 
     fun applyStatusBar(window: android.view.Window, ctx: android.content.Context) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {

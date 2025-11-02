@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.*
 import java.io.File
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 class SearchActivity : AppCompatActivity() {
 
@@ -31,6 +33,7 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var btnClearSearch: ImageButton
     private lateinit var progressBar: ProgressBar
     private lateinit var emptyStateView: TextView
+    private var basePaddingTop: Int = 0
 
     private lateinit var trackAdapter: TrackAdapter
     private lateinit var playlistAdapter: PlaylistAdapter
@@ -60,6 +63,7 @@ class SearchActivity : AppCompatActivity() {
 
         initViews()
         setupSystemBars()
+        applyStatusBarInsets()
         setupAdapters()
         setupSearchListeners()
         setupTypeSwitcher()
@@ -70,6 +74,7 @@ class SearchActivity : AppCompatActivity() {
 
     private fun initViews() {
         searchLayout = findViewById(R.id.searchLayout)
+        basePaddingTop = searchLayout.paddingTop
         searchEditText = findViewById(R.id.searchEditText)
         searchTypeGroup = findViewById(R.id.searchTypeGroup)
         rbTracks = findViewById(R.id.rbTracks)
@@ -88,6 +93,14 @@ class SearchActivity : AppCompatActivity() {
         setupEmptyState()
     }
 
+    private fun applyStatusBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(searchLayout) { v, insets ->
+            val topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            v.setPadding(v.paddingLeft, basePaddingTop + topInset, v.paddingRight, v.paddingBottom)
+            insets
+        }
+    }
+
     private fun setupSystemBars() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = android.graphics.Color.TRANSPARENT
@@ -102,6 +115,8 @@ class SearchActivity : AppCompatActivity() {
             val darkIcons = androidx.core.graphics.ColorUtils.calculateLuminance(secondary) > 0.5
             ThemeManager.applyTransparentStatusBar(window, darkIcons)
         }
+        setLayoutFullscreen()
+        applyContentTopPadding()
         restoreColor()
     }
 
@@ -445,13 +460,33 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun restoreColor() {
-        val gradStart = ThemeManager.getPrimaryGradientStart(this)
-        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
-        val bg = android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-        searchLayout.background = bg
+        searchLayout.background = ThemeManager.getBackgroundDrawable(this)
+    }
+
+    private fun setLayoutFullscreen() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            run {
+                val decor = window.decorView
+                var flags = decor.systemUiVisibility
+                flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                flags = flags or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                decor.systemUiVisibility = flags
+            }
+        }
+    }
+
+    private fun applyContentTopPadding() {
+        val res = resources
+        val resId = res.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = if (resId > 0) res.getDimensionPixelSize(resId) else 0
+        val left = searchLayout.paddingLeft
+        val right = searchLayout.paddingRight
+        val bottom = searchLayout.paddingBottom
+        if (searchLayout.paddingTop != statusBarHeight) {
+            searchLayout.setPadding(left, statusBarHeight, right, bottom)
+        }
     }
 
     override fun onResume() {
@@ -471,7 +506,11 @@ class SearchActivity : AppCompatActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) ThemeManager.showSystemBars(window, this)
+        if (hasFocus) {
+            ThemeManager.showSystemBars(window, this)
+            setLayoutFullscreen()
+            applyContentTopPadding()
+        }
     }
 
     override fun onDestroy() {

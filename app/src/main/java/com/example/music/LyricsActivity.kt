@@ -34,8 +34,6 @@ class LyricsActivity : AppCompatActivity() {
 
         // Принудительно назначаем нужные фоны и снимаем системный tint, чтобы не был фиолетовым
         try {
-            btnSave.setBackgroundResource(R.drawable.button_background_green)
-            btnFind.setBackgroundResource(R.drawable.button_background_blue)
             ViewCompat.setBackgroundTintList(btnSave, null)
             ViewCompat.setBackgroundTintList(btnFind, null)
             btnSave.setTextColor(android.graphics.Color.WHITE)

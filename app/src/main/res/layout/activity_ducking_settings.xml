@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/duckingSettingsLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Параметры приглушения"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/colorTextPrimary"
+        android:layout_marginBottom="24dp"
+        android:layout_marginStart="8dp" />
+
+    <!-- Включатель функции приглушения -->
+    <LinearLayout
+        android:id="@+id/duckingToggleRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/settings_item_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_ringtone"
+            android:tint="@color/colorIconTint"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Включить приглушение"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+        <Switch
+            android:id="@+id/switchEnableDucking"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/optionsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/settings_section_background"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp">
+
+        <!-- Раздел: Полная потеря фокуса -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_ringtone"
+                android:tint="@color/colorIconTint"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Долгие внешние звуки"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rowLoss"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/settings_item_background"
+            android:padding="12dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/valueLoss"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Приглушать"
+                android:textSize="16sp"
+                android:textColor="@color/colorTextPrimary" />
+
+            <ImageView
+                android:id="@+id/arrowLoss"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_arrow_down"
+                android:tint="@color/colorIconTint" />
+            <Spinner
+                android:id="@+id/spinnerLoss"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="invisible"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
+
+        <!-- Раздел: Временные внешние звуки -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_ringtone"
+                android:tint="@color/colorIconTint"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Короткие внешние звуки"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rowLossTransient"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/settings_item_background"
+            android:padding="12dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/valueLossTransient"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Приглушать"
+                android:textSize="16sp"
+                android:textColor="@color/colorTextPrimary" />
+
+            <ImageView
+                android:id="@+id/arrowLossTransient"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_arrow_down"
+                android:tint="@color/colorIconTint" />
+            <Spinner
+                android:id="@+id/spinnerLossTransient"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="invisible"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
+
+        <!-- Раздел: Уведомления и мелочи -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_ringtone"
+                android:tint="@color/colorIconTint"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Уведомления и мелочи"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorTextPrimary" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rowCanDuck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/settings_item_background"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/valueCanDuck"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Не изменять"
+                android:textSize="16sp"
+                android:textColor="@color/colorTextPrimary" />
+
+            <ImageView
+                android:id="@+id/arrowCanDuck"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_arrow_down"
+                android:tint="@color/colorIconTint" />
+            <Spinner
+                android:id="@+id/spinnerCanDuck"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="invisible"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
+
+        <!-- Интенсивность -->
+        <TextView
+            android:id="@+id/textDuckingLevel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Интенсивность приглушения: 30%"
+            android:textColor="@color/colorTextPrimary" />
+
+        <SeekBar
+            android:id="@+id/seekDuckingLevel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnSave"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="Сохранить"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#664CAF50"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="Назад"
+        android:textColor="@android:color/white"
+        android:backgroundTint="#668D8D8D"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+</LinearLayout>

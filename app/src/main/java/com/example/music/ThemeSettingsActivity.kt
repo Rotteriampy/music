@@ -11,6 +11,8 @@ import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.appcompat.widget.SwitchCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 
 class ThemeSettingsActivity : AppCompatActivity() {
 
@@ -21,9 +23,18 @@ class ThemeSettingsActivity : AppCompatActivity() {
     private lateinit var switchThemeMode: SwitchCompat
     private lateinit var darkPresetsContainer: LinearLayout
     private lateinit var lightPresetsContainer: LinearLayout
+    private lateinit var btnPickBgImage: Button
+    private lateinit var btnClearBgImage: Button
 
     private val currentThemePresets = mutableSetOf<String>()
     private var selectedPresetName: String? = null
+
+    private val imagePicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let {
+            ThemeManager.setBackgroundImage(this, it)
+            onThemeChanged()
+        }
+    }
 
     override fun onResume() {
         super.onResume()
@@ -56,15 +67,17 @@ class ThemeSettingsActivity : AppCompatActivity() {
         val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
         val accent = ThemeManager.getAccentColor(this)
 
-        val gd = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-        mainLayout.background = gd
+        // Apply either gradient or selected image
+        mainLayout.background = ThemeManager.getBackgroundDrawable(this)
 
         btnPickAccent.text = toHex(accent)
         btnPickPrimaryGradStart.text = toHex(gradStart)
         btnPickPrimaryGradEnd.text = toHex(gradEnd)
+
+        // Enable/disable clear button depending on mode
+        if (::btnClearBgImage.isInitialized) {
+            btnClearBgImage.isEnabled = ThemeManager.isBackgroundImageEnabled(this)
+        }
 
         if (::darkPresetsContainer.isInitialized && ::lightPresetsContainer.isInitialized) {
             updatePresetSelection(gradStart, gradEnd)
@@ -94,6 +107,8 @@ class ThemeSettingsActivity : AppCompatActivity() {
         switchThemeMode = findViewById(R.id.switchThemeMode)
         darkPresetsContainer = findViewById(R.id.darkPresetsContainer)
         lightPresetsContainer = findViewById(R.id.lightPresetsContainer)
+        btnPickBgImage = findViewById(R.id.btnPickBgImage)
+        btnClearBgImage = findViewById(R.id.btnClearBgImage)
 
         findViewById<Button>(R.id.btnBack).setOnClickListener { finish() }
 
@@ -119,6 +134,14 @@ class ThemeSettingsActivity : AppCompatActivity() {
                 ThemeManager.setAccentColor(this, color)
                 onThemeChanged()
             }
+        }
+
+        btnPickBgImage.setOnClickListener {
+            imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+        btnClearBgImage.setOnClickListener {
+            ThemeManager.setBackgroundImage(this, null)
+            onThemeChanged()
         }
     }
 

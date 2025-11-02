@@ -125,12 +125,11 @@ class QueueActivity : AppCompatActivity() {
     }
 
     private fun applyGradientBackground() {
+        val drawable = ThemeManager.getBackgroundDrawable(this)
+        try { window.setBackgroundDrawable(drawable) } catch (_: Exception) {}
+        // Fallback bar colors from theme gradient ends
         val start = ThemeManager.getPrimaryGradientStart(this)
         val end = ThemeManager.getPrimaryGradientEnd(this)
-        val gradient = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(start, end))
-        // Set as window background
-        try { window.setBackgroundDrawable(gradient) } catch (_: Exception) {}
-        // Color bars to match gradient edges
         try { window.statusBarColor = start } catch (_: Exception) {}
         try { window.navigationBarColor = end } catch (_: Exception) {}
     }

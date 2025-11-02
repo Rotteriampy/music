@@ -162,7 +162,17 @@ class PlaylistActivity : AppCompatActivity() {
 
         btnDeletePlaylist.setOnClickListener { onDeletePlaylistClick() }
         btnAddTrack.setOnClickListener { onAddTrackClick() }
-        btnBack.setOnClickListener { onBackClick() }
+        btnBack.setOnClickListener {
+            try {
+                btnBack.animate().cancel()
+                btnBack.rotation = 0f
+                btnBack.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
         btnReorder.setOnClickListener { toggleReorderMode() }
         btnSortPlaylist.setOnClickListener { showSortMenu(it) }
         btnPlayPlaylist.setOnClickListener { playPlaylist() }
@@ -508,15 +518,7 @@ class PlaylistActivity : AppCompatActivity() {
     }
 
     private fun restoreColor() {
-        val gradStart = ThemeManager.getPrimaryGradientStart(this)
-        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
-
-        val gd = android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-
-        playlistRootLayout.background = gd
+        playlistRootLayout.background = ThemeManager.getBackgroundDrawable(this)
     }
 
     private fun onDeletePlaylistClick() {

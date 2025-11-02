@@ -44,6 +44,58 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/tabsOrderButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/settings_item_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_reorder"
+            android:tint="@color/colorIconTint"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Порядок вкладок"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/duckingSettingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/settings_item_background"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_ringtone"
+            android:tint="@color/colorIconTint"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Параметры приглушения"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/statsSettingsButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -91,7 +143,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Продолжать воспроизведение с начала"
+            android:text="Повтор очереди"
             android:textSize="16sp"
             android:textColor="@color/colorTextPrimary" />
 
@@ -101,6 +153,7 @@
             android:layout_height="wrap_content" />
 
     </LinearLayout>
+
 
     <!-- Кнопка Назад с полупрозрачным серым фоном и ярким контуром -->
     <Button

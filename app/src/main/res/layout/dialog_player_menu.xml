@@ -172,6 +172,34 @@
 
     </LinearLayout>
 
+    <!-- Автовыключение -->
+    <LinearLayout
+        android:id="@+id/tvSleepTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_duration"
+            android:layout_marginStart="-2dp"
+            android:layout_marginEnd="12dp"
+            android:tint="@color/colorIconTint" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Автовыключение"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
     <!-- Установить как рингтон -->
     <LinearLayout
         android:id="@+id/tvSetAsRingtone"

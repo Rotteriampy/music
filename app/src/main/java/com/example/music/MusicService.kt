@@ -14,6 +14,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.media.AudioManager
+import android.media.AudioFocusRequest
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -42,6 +44,8 @@ class MusicService : Service() {
         const val ACTION_STOP = "com.arotter.music.ACTION_STOP"
         const val ACTION_CLOSE = "com.arotter.music.ACTION_CLOSE"
         const val ACTION_SET_MODE = "com.arotter.music.ACTION_SET_MODE"
+        const val ACTION_SET_SLEEP = "com.arotter.music.ACTION_SET_SLEEP"
+        const val ACTION_CANCEL_SLEEP = "com.arotter.music.ACTION_CANCEL_SLEEP"
 
         var currentTrack: Track? = null
         var isPlaying = false
@@ -57,6 +61,12 @@ class MusicService : Service() {
     private var hasCountedAsPlayed = false
     private var lastCheckedPosition = 0
     private var hasSeekedThisTrack = false
+    private lateinit var audioManager: AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var isDucked = false
+    private var pausedByFocusTransient = false
+    private var sleepHandler: android.os.Handler? = null
+    private var sleepRunnable: Runnable? = null
 
     private val playbackModeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -82,6 +92,8 @@ class MusicService : Service() {
         // Загружаем режим воспроизведения
         val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
         playbackMode = prefs.getString("playback_mode", "NORMAL") ?: "NORMAL"
+
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         // Регистрируем receiver для изменения режима
         val filter = IntentFilter("com.arotter.music.PLAYBACK_MODE_CHANGED")
@@ -118,6 +130,11 @@ class MusicService : Service() {
             ACTION_STOP -> stopService()
             ACTION_CLOSE -> stopService()
             ACTION_SET_MODE -> handleSetMode(intent)
+            ACTION_SET_SLEEP -> {
+                val minutes = intent.getIntExtra("sleep_minutes", 0).coerceAtLeast(0)
+                if (minutes > 0) scheduleSleepTimer(minutes) else cancelSleepTimer()
+            }
+            ACTION_CANCEL_SLEEP -> cancelSleepTimer()
             else -> {
                 val trackPath = intent?.getStringExtra("TRACK_PATH")
                 if (trackPath != null) {
@@ -126,6 +143,30 @@ class MusicService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun scheduleSleepTimer(minutes: Int) {
+        try {
+            if (sleepHandler == null) sleepHandler = android.os.Handler(android.os.Looper.getMainLooper())
+            sleepRunnable?.let { sleepHandler?.removeCallbacks(it) }
+            val ms = minutes * 60_000L
+            sleepRunnable = Runnable {
+                try {
+                    pauseMusic()
+                    Toast.makeText(this, "Автовыключение: музыка на паузе", Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {}
+            }
+            sleepHandler?.postDelayed(sleepRunnable!!, ms)
+            Toast.makeText(this, "Таймер сна: ${minutes} мин", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {}
+    }
+
+    private fun cancelSleepTimer() {
+        try {
+            sleepRunnable?.let { sleepHandler?.removeCallbacks(it) }
+            sleepRunnable = null
+            Toast.makeText(this, "Таймер сна отменён", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {}
     }
 
     private fun handleSetMode(intent: Intent) {
@@ -236,6 +277,9 @@ class MusicService : Service() {
             }
         }
 
+        requestAudioFocus()
+        if (!isDucked) setPlayerVolume(1.0f)
+
         updateMediaSessionMetadata()
         updatePlaybackState()
         showNotification()
@@ -320,7 +364,9 @@ class MusicService : Service() {
     }
 
     fun resumeMusic() {
+        requestAudioFocus()
         mediaPlayer?.start()
+        if (!isDucked) setPlayerVolume(1.0f)
         isPlaying = true
         startPositionUpdates()
         updatePlaybackState()
@@ -550,6 +596,8 @@ class MusicService : Service() {
         hasCountedAsPlayed = false
         mediaSession.isActive = false
 
+        abandonAudioFocus()
+
         Intent("com.arotter.music.TRACK_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
@@ -726,6 +774,85 @@ class MusicService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(isPlaying)
             .build()
+    }
+
+    private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
+        val duckingEnabled = prefs.getBoolean("enable_ducking", true)
+        val actionLoss = prefs.getString("duck_action_loss", "duck") ?: "duck"
+        val actionLossTransient = prefs.getString("duck_action_loss_transient", "duck") ?: "duck"
+        val actionCanDuck = prefs.getString("duck_action_can_duck", "ignore") ?: "ignore"
+        val level = (prefs.getFloat("duck_level", 0.3f)).coerceIn(0.1f, 1.0f)
+
+        fun applyAction(action: String, isTransient: Boolean) {
+            when (action) {
+                "ignore" -> Unit
+                "duck" -> if (duckingEnabled) { setPlayerVolume(level); isDucked = true }
+                "pause" -> {
+                    if (isTransient) pausedByFocusTransient = true
+                    pauseMusic()
+                }
+            }
+        }
+
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (isDucked) {
+                    setPlayerVolume(1.0f)
+                    isDucked = false
+                }
+                if (pausedByFocusTransient) {
+                    pausedByFocusTransient = false
+                    resumeMusic()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                applyAction(actionLossTransient, isTransient = true)
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                pausedByFocusTransient = false
+                applyAction(actionLoss, isTransient = false)
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                applyAction(actionCanDuck, isTransient = true)
+            }
+        }
+    }
+
+    private fun requestAudioFocus() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val afr = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setOnAudioFocusChangeListener(focusChangeListener)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setWillPauseWhenDucked(false)
+                    .build()
+                audioFocusRequest = afr
+                audioManager.requestAudioFocus(afr)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    focusChangeListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+                )
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun abandonAudioFocus() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(focusChangeListener)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun setPlayerVolume(vol: Float) {
+        try { mediaPlayer?.setVolume(vol, vol) } catch (_: Exception) {}
     }
 
     private fun drawableToSizedBitmap(drawable: android.graphics.drawable.Drawable, width: Int, height: Int): Bitmap {

@@ -76,15 +76,15 @@
                 android:layout_height="24dp"
                 android:src="@drawable/ic_arrow_down"
                 android:tint="@color/colorIconTint" />
-        </LinearLayout>
 
-        <!-- Скрытый Spinner для системного выпадающего меню -->
-        <Spinner
-            android:id="@+id/spChartTypeSettings"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone"
-            android:spinnerMode="dropdown" />
+            <!-- Скрытый Spinner внутри строки для корректного якорения выпадающего меню -->
+            <Spinner
+                android:id="@+id/spChartTypeSettings"
+                android:layout_width="1dp"
+                android:layout_height="1dp"
+                android:visibility="invisible"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
 
     </LinearLayout>
 

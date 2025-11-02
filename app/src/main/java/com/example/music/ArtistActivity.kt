@@ -150,7 +150,18 @@ class ArtistActivity : AppCompatActivity() {
             finish()
         }
 
-        btnBack.setOnClickListener { finish() }
+        btnBack.setOnClickListener {
+            try {
+                btnBack.animate().cancel()
+                btnBack.rotation = 0f
+                btnBack.animate()
+                    .rotation(180f)
+                    .setDuration(180L)
+                    .withEndAction { finish() }
+                    .start()
+            } catch (_: Exception) { finish() }
+        }
+
         btnPlayArtist.setOnClickListener { playArtist() }
         btnShuffleArtist.setOnClickListener { shuffleAndPlayArtist() }
         btnSortArtist.setOnClickListener { showSortMenu(it) }
@@ -406,15 +417,7 @@ class ArtistActivity : AppCompatActivity() {
     }
 
     private fun restoreColor() {
-        val gradStart = ThemeManager.getPrimaryGradientStart(this)
-        val gradEnd = ThemeManager.getPrimaryGradientEnd(this)
-
-        val gd = android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-            intArrayOf(gradStart, gradEnd)
-        )
-
-        artistRootLayout.background = gd // или artistRootLayout, genreRootLayout
+        artistRootLayout.background = ThemeManager.getBackgroundDrawable(this)
     }
 
     private fun setupDialogGradient(dialog: AlertDialog) {

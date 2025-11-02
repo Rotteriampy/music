@@ -64,23 +64,21 @@
     <Button
         android:id="@+id/btnSaveLyrics"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:text="Сохранить"
-        android:background="@drawable/button_background_green"
         android:textColor="@android:color/white"
-        android:backgroundTint="@null"
-        app:backgroundTint="@null"
-        android:layout_marginTop="12dp" />
+        android:backgroundTint="#664CAF50"
+        android:textSize="16sp"
+        android:textStyle="bold" />
 
     <Button
         android:id="@+id/btnFindLyrics"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Найти в интернете"
-        android:background="@drawable/button_background_blue"
+        android:layout_height="50dp"
+        android:text="Найти"
         android:textColor="@android:color/white"
-        android:backgroundTint="@null"
-        app:backgroundTint="@null"
-        android:layout_marginTop="8dp" />
+        android:backgroundTint="#664ca8af"
+        android:textSize="16sp"
+        android:textStyle="bold" />
 
 </LinearLayout>
