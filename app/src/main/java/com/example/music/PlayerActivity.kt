@@ -701,6 +701,11 @@ class PlayerActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
+        dialogView.findViewById<LinearLayout>(R.id.tvEqualizer).setOnClickListener {
+            startActivity(Intent(this, EqualizerActivity::class.java))
+            dialog.dismiss()
+        }
+
         dialogView.findViewById<LinearLayout>(R.id.tvSetAsRingtone).setOnClickListener {
             setAsRingtone(track)
             dialog.dismiss()

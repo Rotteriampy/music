@@ -1,35 +1,21 @@
 package com.arotter.music
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
-import android.content.BroadcastReceiver
-import android.content.ContentUris
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.app.*
+import android.content.*
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
-import android.media.AudioManager
-import android.media.AudioFocusRequest
-import android.os.Binder
-import android.os.Build
-import android.os.IBinder
+import android.media.*
+import android.media.audiofx.Equalizer
+import android.net.Uri
+import android.os.*
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import android.util.Log
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.*
 import kotlin.math.max
 
 class MusicService : Service() {
@@ -65,8 +51,12 @@ class MusicService : Service() {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var isDucked = false
     private var pausedByFocusTransient = false
-    private var sleepHandler: android.os.Handler? = null
+    private var sleepHandler: Handler? = null
     private var sleepRunnable: Runnable? = null
+    private var playbackSpeed: Float = 1.0f
+    private var playbackPitch: Float = 1.0f
+    private var audioEqualizer: Equalizer? = null
+    private var eqBandLevels: ShortArray? = null
 
     private val playbackModeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -92,7 +82,6 @@ class MusicService : Service() {
         // Загружаем режим воспроизведения
         val prefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
         playbackMode = prefs.getString("playback_mode", "NORMAL") ?: "NORMAL"
-
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         // Регистрируем receiver для изменения режима
@@ -147,7 +136,7 @@ class MusicService : Service() {
 
     private fun scheduleSleepTimer(minutes: Int) {
         try {
-            if (sleepHandler == null) sleepHandler = android.os.Handler(android.os.Looper.getMainLooper())
+            if (sleepHandler == null) sleepHandler = Handler(Looper.getMainLooper())
             sleepRunnable?.let { sleepHandler?.removeCallbacks(it) }
             val ms = minutes * 60_000L
             sleepRunnable = Runnable {
@@ -172,7 +161,6 @@ class MusicService : Service() {
     private fun handleSetMode(intent: Intent) {
         val previousMode = playbackMode
         val requested = intent.getStringExtra("playback_mode")
-
         playbackMode = if (requested != null) {
             requested
         } else {
@@ -264,6 +252,7 @@ class MusicService : Service() {
         }.also { sendBroadcast(it) }
 
         mediaPlayer?.release()
+        releaseEqualizer()
         mediaPlayer = MediaPlayer().apply {
             try {
                 setDataSource(path)
@@ -277,9 +266,10 @@ class MusicService : Service() {
             }
         }
 
+        applyPlaybackParams()
+        initEqualizer()
         requestAudioFocus()
         if (!isDucked) setPlayerVolume(1.0f)
-
         updateMediaSessionMetadata()
         updatePlaybackState()
         showNotification()
@@ -288,7 +278,6 @@ class MusicService : Service() {
 
     private fun onTrackCompleted() {
         checkAndIncrementPlayCount()
-
         when (playbackMode) {
             "REPEAT_ONE" -> {
                 mediaPlayer?.seekTo(0)
@@ -332,7 +321,6 @@ class MusicService : Service() {
                     QueueManager.getCurrentTrack()?.path?.let { playTrack(it) }
                     return
                 }
-
                 val queue = QueueManager.getCurrentQueue()
                 if (playbackMode == "REPEAT_ALL") {
                     if (queue.isNotEmpty()) {
@@ -367,6 +355,7 @@ class MusicService : Service() {
         requestAudioFocus()
         mediaPlayer?.start()
         if (!isDucked) setPlayerVolume(1.0f)
+        applyPlaybackParams()
         isPlaying = true
         startPositionUpdates()
         updatePlaybackState()
@@ -374,6 +363,94 @@ class MusicService : Service() {
         Intent("com.arotter.music.PLAYBACK_STATE_CHANGED").apply {
             setPackage(applicationContext.packageName)
         }.also { sendBroadcast(it) }
+    }
+
+    private fun applyPlaybackParams() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                mediaPlayer?.let { mp ->
+                    val params = mp.playbackParams ?: PlaybackParams()
+                    params.speed = playbackSpeed.coerceIn(0.5f, 2.0f)
+                    params.pitch = playbackPitch.coerceIn(0.5f, 2.0f)
+                    mp.playbackParams = params
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun setPlaybackSpeedPitch(speed: Float, pitch: Float) {
+        playbackSpeed = speed
+        playbackPitch = pitch
+        applyPlaybackParams()
+    }
+
+    fun resetPlaybackParams() {
+        playbackSpeed = 1.0f
+        playbackPitch = 1.0f
+        applyPlaybackParams()
+    }
+
+    fun getPlaybackSpeed(): Float = playbackSpeed
+    fun getPlaybackPitch(): Float = playbackPitch
+
+    private fun initEqualizer() {
+        try {
+            val sessionId = mediaPlayer?.audioSessionId ?: return
+            if (sessionId == AudioManager.ERROR) return
+            releaseEqualizer()
+            audioEqualizer = Equalizer(0, sessionId).apply {
+                enabled = true
+                eqBandLevels?.let { arr ->
+                    val bands = numberOfBands.toInt()
+                    if (arr.size == bands) {
+                        for (i in 0 until bands) {
+                            val level = arr[i]
+                            try { setBandLevel(i.toShort(), level) } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            audioEqualizer = null
+        }
+    }
+
+    private fun releaseEqualizer() {
+        try { audioEqualizer?.enabled = false } catch (_: Exception) {}
+        try { audioEqualizer?.release() } catch (_: Exception) {}
+        audioEqualizer = null
+    }
+
+    fun isEqualizerAvailable(): Boolean = try { audioEqualizer?.numberOfBands ?: 0 > 0 } catch (_: Exception) { false }
+    fun getEqNumberOfBands(): Short = try { audioEqualizer?.numberOfBands ?: 0 } catch (_: Exception) { 0 }
+    fun getEqBandLevelRange(): ShortArray = try { audioEqualizer?.bandLevelRange ?: shortArrayOf(0, 0) } catch (_: Exception) { shortArrayOf(0, 0) }
+    fun getEqCenterFreq(band: Short): Int = try { audioEqualizer?.getCenterFreq(band) ?: 0 } catch (_: Exception) { 0 }
+    fun getEqBandLevel(band: Short): Short = try { audioEqualizer?.getBandLevel(band) ?: 0 } catch (_: Exception) { 0 }
+
+    fun setEqBandLevel(band: Short, level: Short) {
+        try {
+            val range = getEqBandLevelRange()
+            val clamped = level.coerceIn(range[0], range[1])
+            audioEqualizer?.setBandLevel(band, clamped)
+            val bands = getEqNumberOfBands().toInt()
+            if (bands > 0) {
+                if (eqBandLevels == null || eqBandLevels?.size != bands) {
+                    eqBandLevels = ShortArray(bands) { 0 }
+                }
+                eqBandLevels?.let { it[band.toInt()] = clamped }
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun resetEqualizer() {
+        try {
+            val bands = getEqNumberOfBands().toInt()
+            val zeros = ShortArray(bands) { 0 }
+            for (i in 0 until bands) {
+                try { audioEqualizer?.setBandLevel(i.toShort(), 0) } catch (_: Exception) {}
+            }
+            eqBandLevels = zeros
+        } catch (_: Exception) {}
     }
 
     private fun playNext() {
@@ -416,7 +493,6 @@ class MusicService : Service() {
             showNotification()
             return
         }
-
         if (QueueManager.moveToPreviousTrack(this)) {
             val previousTrack = QueueManager.getCurrentTrack()
             if (previousTrack?.path != null) {
@@ -490,28 +566,22 @@ class MusicService : Service() {
             Log.d("PLAY_COUNT", "Skip count due to seek during track")
             return
         }
-
         val duration = getDuration()
         val currentPos = getCurrentPosition()
         if (duration <= 0) return
-
         val playedPercentage = (currentPos.toFloat() / duration.toFloat()) * 100
-
         if (lastCheckedPosition == -1) {
             lastCheckedPosition = currentPos
             Log.d("PLAY_COUNT", "Skip after seek; set lastPos=$currentPos")
             return
         }
-
         val positionDiff = currentPos - lastCheckedPosition
         val isNaturalProgress = positionDiff in 100..2000
         lastCheckedPosition = currentPos
-
         if (playedPercentage >= 90f && isNaturalProgress) {
             hasCountedAsPlayed = true
             Log.d("PLAY_COUNT", "COUNTED!")
             ListeningStats.incrementPlayCount(this, currentTrackPath!!)
-
             try {
                 val ct = currentTrack
                 var genre: String? = null
@@ -534,7 +604,6 @@ class MusicService : Service() {
                     )
                 )
             } catch (_: Exception) {}
-
             Intent("com.arotter.music.STATS_UPDATED").apply {
                 setPackage(applicationContext.packageName)
             }.also { sendBroadcast(it) }
@@ -555,7 +624,6 @@ class MusicService : Service() {
     }
 
     private fun stopService() {
-        // Фиксируем процент прослушивания при остановке
         try {
             if (currentTrackPath != null && mediaPlayer != null && !hasSeekedThisTrack && !hasCountedAsPlayed) {
                 val dur = getDuration()
@@ -586,15 +654,9 @@ class MusicService : Service() {
             }
         } catch (_: Exception) {}
 
-        checkAndIncrementPlayCount()
-        mediaPlayer?.stop()
-        mediaPlayer?.release()
-        mediaPlayer = null
-        isPlaying = false
-        currentTrack = null
-        currentTrackPath = null
-        hasCountedAsPlayed = false
-        mediaSession.isActive = false
+        Intent("com.arotter.music.STATS_UPDATED").apply {
+            setPackage(applicationContext.packageName)
+        }.also { sendBroadcast(it) }
 
         abandonAudioFocus()
 
@@ -656,7 +718,6 @@ class MusicService : Service() {
             currentTrack?.let { track ->
                 val cacheKey = "notif_art_${track.path ?: track.albumId ?: track.name ?: "unknown"}"
                 DiskImageCache.getBitmap(cacheKey)?.let { return it }
-
                 val retriever = MediaMetadataRetriever()
                 track.path?.let { retriever.setDataSource(it) }
                 val data = retriever.embeddedPicture
@@ -667,7 +728,6 @@ class MusicService : Service() {
                     return bmp
                 }
                 retriever.release()
-
                 track.albumId?.let { albumId ->
                     val uri = ContentUris.withAppendedId(MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI, albumId)
                     contentResolver.openInputStream(uri)?.use { input ->
@@ -737,7 +797,6 @@ class MusicService : Service() {
         catch (_: Exception) { (64 * resources.displayMetrics.density).toInt() }
 
         val radiusPx = 12f * resources.displayMetrics.density
-
         val largeIcon: Bitmap? = try {
             if (albumArt != null) {
                 createRoundedBitmapCropped(albumArt, notifW, notifH, radiusPx)
@@ -870,20 +929,16 @@ class MusicService : Service() {
             isFilterBitmap = true
             isDither = true
         }
-
         val scale = max(outW.toFloat() / src.width, outH.toFloat() / src.height)
         val dx = (outW - src.width * scale) / 2f
         val dy = (outH - src.height * scale) / 2f
-
         val matrix = android.graphics.Matrix().apply {
             setScale(scale, scale)
             postTranslate(dx, dy)
         }
-
         val shader = android.graphics.BitmapShader(src, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
         shader.setLocalMatrix(matrix)
         paint.shader = shader
-
         val rect = android.graphics.RectF(0f, 0f, outW.toFloat(), outH.toFloat())
         canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
         return output

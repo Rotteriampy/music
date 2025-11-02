@@ -172,6 +172,34 @@
 
     </LinearLayout>
 
+    <!-- Эквалайзер (скорость и тон) -->
+    <LinearLayout
+        android:id="@+id/tvEqualizer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_listens"
+            android:layout_marginStart="-2dp"
+            android:layout_marginEnd="12dp"
+            android:tint="@color/colorIconTint" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Редактор звука"
+            android:textSize="16sp"
+            android:textColor="@color/colorTextPrimary" />
+
+    </LinearLayout>
+
     <!-- Автовыключение -->
     <LinearLayout
         android:id="@+id/tvSleepTimer"

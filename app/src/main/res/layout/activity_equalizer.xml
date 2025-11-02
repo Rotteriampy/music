@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootEq"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close"
+            android:tint="@android:color/white" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Редактор"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextPrimary"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <!-- Блок Тюнер: заголовок + сброс -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Тюнер"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextPrimary" />
+
+        <ImageButton
+            android:id="@+id/btnResetTuner"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Сброс тюнера"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_reset"
+            android:tint="@color/accent_color" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/lblSpeed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Скорость: 1.00x"
+        android:textSize="16sp"
+        android:textColor="@color/colorTextPrimary"
+        android:paddingTop="12dp" />
+
+    <SeekBar
+        android:id="@+id/seekSpeed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:progress="33" />
+
+    <TextView
+        android:id="@+id/lblPitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Тон: 1.00"
+        android:textSize="16sp"
+        android:textColor="@color/colorTextPrimary"
+        android:paddingTop="12dp" />
+
+    <SeekBar
+        android:id="@+id/seekPitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:progress="33" />
+
+    <!-- Блок Эквалайзер: заголовок + сброс -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="24dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Эквалайзер"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorTextPrimary" />
+
+        <ImageButton
+            android:id="@+id/btnResetEq"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Сброс эквалайзера"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_reset"
+            android:tint="@color/accent_color" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/eqContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp" />
+    </ScrollView>
+
+</LinearLayout>
